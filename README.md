@@ -1,58 +1,96 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Aplikasi Kasir & Manajemen Kafe
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Sistem manajemen basis data untuk kafe mitra — mencakup transaksi penjualan (POS), manajemen stok bahan baku, dan laporan penjualan & keuangan. Dibangun sebagai Tugas Besar mata kuliah Manajemen Sistem Basis Data.
 
-## About Laravel
+## Deskripsi
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+Aplikasi ini dikembangkan untuk membantu kafe mitra mengelola operasional harian yang sebelumnya dilakukan secara manual, meliputi pencatatan transaksi, pemantauan stok bahan baku, hingga penyusunan laporan penjualan dan keuangan secara otomatis dan terintegrasi.
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## Fitur Utama
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+- **Autentikasi & Manajemen User** — login berbasis role dengan middleware
+- **Master Data** — kategori menu, menu/produk, dan bahan baku (ingredients)
+- **Resep/BOM (Bill of Material)** — relasi antara menu dan bahan baku beserta takaran, sehingga stok berkurang otomatis setiap ada penjualan
+- **Transaksi Penjualan (POS)** — keranjang belanja, metode pembayaran, diskon, cetak struk
+- **Manajemen Stok** — stok masuk (pembelian bahan baku), stok keluar otomatis dari penjualan, stok opname, notifikasi stok menipis
+- **Laporan** — laporan penjualan harian/bulanan, laba-rugi sederhana, produk terlaris, laporan stok
+- **Dashboard Owner** — ringkasan visual (grafik penjualan, produk terlaris, status stok)
 
-## Learning Laravel
+## Peran & Hak Akses
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+| Role | Akses |
+|---|---|
+| **Admin** | Kelola master data, input pembelian stok, kelola user, lihat semua laporan |
+| **Kasir** | Buat transaksi penjualan, lihat stok tersedia, cetak struk |
+| **Owner** | Lihat dashboard & laporan penjualan/keuangan (read-only) |
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+## Tech Stack
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
+- **Backend**: Laravel (PHP)
+- **Database**: Postgress
+- **Frontend**: Blade
+- **Laporan**: Laravel Excel (export), Chart.js (dashboard)
 
-## Agentic Development
+## Struktur Database
 
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+Entitas utama: `users`, `categories`, `menus`, `ingredients`, `menu_ingredients`, `transactions`, `transaction_details`, `stock_movements`.
+
+Alur singkat:
+1. Kasir membuat transaksi → sistem mengecek kebutuhan bahan baku via `menu_ingredients`
+2. Transaksi tersimpan di `transactions` & `transaction_details`
+3. Stok bahan baku otomatis berkurang, tercatat di `stock_movements` (type: `out`)
+4. Admin mencatat pembelian bahan baku → `stock_movements` (type: `in`) → `ingredients.stock_qty` bertambah
+5. Laporan penjualan & laba-rugi dihasilkan dari agregasi `transactions` dan `stock_movements`
+
+## Instalasi & Setup
 
 ```bash
-composer require laravel/boost --dev
+# Clone repository
+git clone <url-repository>
+cd <nama-folder>
 
-php artisan boost:install
+# Install dependencies
+composer install
+npm install
+
+# Konfigurasi environment
+cp .env.example .env
+php artisan key:generate
+
+# Sesuaikan koneksi database di .env
+# DB_DATABASE=nama_database
+# DB_USERNAME=root
+# DB_PASSWORD=
+
+# Migrasi & seeding database
+php artisan migrate --seed
+
+# Jalankan build asset
+npm run dev
+
+# Jalankan server lokal
+php artisan serve
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+## Struktur Folder (ringkas)
 
-## Contributing
+```
+app/
+ ├── Models/            # Eloquent models (User, Menu, Ingredient, Transaction, dst)
+ ├── Http/Controllers/  # Controller per modul (Auth, POS, Stok, Laporan)
+ └── Http/Middleware/   # Middleware pengecekan role (admin, kasir, owner)
+database/
+ ├── migrations/        # Struktur tabel
+ └── seeders/           # Data awal (kategori, menu default, user demo)
+resources/views/        # Blade views per role
+routes/web.php          # Routing aplikasi
+```
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+## Tim Pengembang
 
-## Code of Conduct
+- Kelompok: _isi nama kelompok_
+- Anggota: _isi nama & NIM_
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+## Lisensi
 
-## Security Vulnerabilities
-
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
-
-## License
-
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+Project ini dibuat untuk keperluan akademik (Tugas Besar Manajemen Sistem Basis Data).
