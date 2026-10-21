@@ -3,7 +3,190 @@
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
 
+/* ==========================================================================
+   KAFE KALENG — design tokens
+   Palet diambil dari logo: hitam espresso, krem, pasir, amber matahari,
+   oranye terakota, cokelat kayu, dan merah anggur (aksen).
+   ========================================================================== */
 @theme {
-    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
-        'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
+    --font-display: 'Alfa Slab One', 'Rockwell', 'Roboto Slab', ui-serif, Georgia, serif;
+
+    --color-ink: #0c0f12;
+    --color-bean: #1b130c;
+    --color-bean-2: #2a1c12;
+    --color-bean-3: #3a281a;
+    --color-cream: #f7f3e4;
+    --color-parchment: #efe8d0;
+    --color-paper: #fffdf6;
+    --color-sand: #d8b476;
+    --color-amber: #eda24a;
+    --color-amber-deep: #d9822b;
+    --color-terra: #e0662b;
+    --color-bark: #7b654d;
+    --color-bark-dark: #5c4a37;
+    --color-wine: #571c2d;
+    --color-wine-soft: #f3dde0;
+    --color-leaf: #4f6b3a;
+    --color-leaf-soft: #e3ebd5;
+    --color-amber-soft: #fbe9cf;
+
+    --ease-spring: cubic-bezier(.22, 1, .36, 1);
+}
+
+@layer base {
+    html { -webkit-text-size-adjust: 100%; }
+    body {
+        background: var(--color-cream);
+        color: var(--color-bean);
+        font-family: var(--font-sans);
+        -webkit-font-smoothing: antialiased;
+        font-optical-sizing: auto;
+    }
+    h1, h2, h3 { letter-spacing: -0.02em; line-height: 1.1; }
+    ::selection { background: var(--color-amber); color: var(--color-ink); }
+    :focus-visible { outline: 2px solid var(--color-amber-deep); outline-offset: 2px; border-radius: 6px; }
+    button { cursor: pointer; }
+    [hidden] { display: none !important; }
+}
+
+@layer components {
+    /* ---------- tipografi ---------- */
+    .display { font-family: var(--font-display); letter-spacing: -0.01em; line-height: 1.02; font-weight: 400; }
+    .eyebrow { font-size: .72rem; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--color-bark); }
+    .num { font-variant-numeric: tabular-nums; }
+
+    /* ---------- tombol: respons di pointer-down, bukan setelah release ---------- */
+    .btn {
+        display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
+        min-height: 2.5rem; padding: .55rem 1rem; border-radius: .85rem;
+        font-size: .875rem; font-weight: 600; line-height: 1; white-space: nowrap;
+        border: 1px solid transparent; user-select: none;
+        transition: transform 120ms var(--ease-spring), background-color 150ms, box-shadow 150ms, border-color 150ms;
+    }
+    .btn:active { transform: scale(.96); transition-duration: 60ms; }
+    .btn:disabled, .btn[aria-disabled=true] { opacity: .45; pointer-events: none; }
+    .btn-primary { background: var(--color-amber); color: var(--color-ink); box-shadow: 0 1px 0 rgb(255 255 255 / .5) inset, 0 6px 16px -8px var(--color-amber-deep); }
+    .btn-primary:hover { background: #f3ad5c; }
+    .btn-dark { background: var(--color-bean); color: var(--color-cream); }
+    .btn-dark:hover { background: var(--color-bean-3); }
+    .btn-ghost { background: transparent; color: var(--color-bean); border-color: rgb(42 28 18 / .18); }
+    .btn-ghost:hover { background: rgb(42 28 18 / .06); }
+    .btn-danger { background: var(--color-wine-soft); color: var(--color-wine); }
+    .btn-danger:hover { background: #ecc9ce; }
+    .btn-sm { min-height: 2rem; padding: .4rem .75rem; font-size: .8rem; border-radius: .7rem; }
+    .btn-lg { min-height: 3.25rem; padding: .9rem 1.4rem; font-size: 1rem; border-radius: 1rem; }
+    .btn-icon { width: 2.5rem; padding: 0; }
+    .btn-icon.btn-sm { width: 2rem; }
+
+    /* ---------- surface ---------- */
+    .card { background: var(--color-paper); border: 1px solid rgb(123 101 77 / .16); border-radius: 1.25rem; box-shadow: 0 1px 2px rgb(42 28 18 / .04), 0 12px 32px -24px rgb(42 28 18 / .35); }
+    .card-pad { padding: 1.25rem; }
+    @media (min-width: 768px) { .card-pad { padding: 1.5rem; } }
+    .card-dark { background: var(--color-bean); color: var(--color-cream); border-radius: 1.25rem; }
+
+    /* ---------- form ---------- */
+    .label { display: block; font-size: .8rem; font-weight: 600; margin-bottom: .4rem; color: var(--color-bark-dark); }
+    .input, .select, .textarea {
+        width: 100%; min-height: 2.75rem; padding: .6rem .9rem; border-radius: .85rem;
+        background: #fff; border: 1px solid rgb(123 101 77 / .3); color: var(--color-bean); font-size: .9rem;
+        transition: border-color 150ms, box-shadow 150ms;
+    }
+    .textarea { min-height: 5.5rem; }
+    .input::placeholder, .textarea::placeholder { color: rgb(123 101 77 / .65); }
+    .input:focus, .select:focus, .textarea:focus { outline: none; border-color: var(--color-amber-deep); box-shadow: 0 0 0 4px rgb(237 162 74 / .25); }
+    .input[aria-invalid=true] { border-color: var(--color-wine); }
+    .help { margin-top: .35rem; font-size: .75rem; color: var(--color-bark); }
+    .error-text { margin-top: .35rem; font-size: .75rem; color: var(--color-wine); font-weight: 500; }
+
+    /* ---------- badge ---------- */
+    .badge { display: inline-flex; align-items: center; gap: .35rem; padding: .2rem .6rem; border-radius: 999px; font-size: .72rem; font-weight: 600; }
+    .badge::before { content: ''; width: .4rem; height: .4rem; border-radius: 50%; background: currentColor; }
+    .badge-ok { background: var(--color-leaf-soft); color: var(--color-leaf); }
+    .badge-warn { background: var(--color-amber-soft); color: #9a5a10; }
+    .badge-bad { background: var(--color-wine-soft); color: var(--color-wine); }
+    .badge-mute { background: var(--color-parchment); color: var(--color-bark-dark); }
+
+    /* ---------- tabel ---------- */
+    .tbl { width: 100%; font-size: .875rem; }
+    .tbl th { text-align: left; padding: .75rem 1rem; font-size: .72rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--color-bark); background: var(--color-parchment); white-space: nowrap; }
+    .tbl th:first-child { border-top-left-radius: .85rem; border-bottom-left-radius: .85rem; }
+    .tbl th:last-child { border-top-right-radius: .85rem; border-bottom-right-radius: .85rem; }
+    .tbl td { padding: .85rem 1rem; border-bottom: 1px solid rgb(123 101 77 / .12); vertical-align: middle; }
+    .tbl tbody tr { transition: background-color 120ms; }
+    .tbl tbody tr:hover { background: rgb(237 162 74 / .08); }
+    .tbl .r { text-align: right; }
+
+    /* ---------- chip / segmented ---------- */
+    .chip { display: inline-flex; align-items: center; gap: .4rem; padding: .5rem .95rem; border-radius: 999px; font-size: .85rem; font-weight: 600; white-space: nowrap;
+        background: var(--color-paper); border: 1px solid rgb(123 101 77 / .25); color: var(--color-bark-dark);
+        transition: transform 120ms var(--ease-spring), background-color 150ms, color 150ms; }
+    .chip:active { transform: scale(.95); }
+    .chip[aria-pressed=true] { background: var(--color-bean); color: var(--color-cream); border-color: var(--color-bean); }
+
+    /* ---------- sidebar link ---------- */
+    .nav-link { display: flex; align-items: center; gap: .75rem; padding: .7rem .9rem; border-radius: .85rem; font-size: .9rem; font-weight: 500; color: rgb(247 243 228 / .72);
+        transition: background-color 150ms, color 150ms, transform 120ms var(--ease-spring); }
+    .nav-link:hover { background: rgb(247 243 228 / .07); color: var(--color-cream); }
+    .nav-link:active { transform: scale(.97); }
+    .nav-link[aria-current=page] { background: var(--color-amber); color: var(--color-ink); font-weight: 600; box-shadow: 0 8px 20px -12px var(--color-amber); }
+    .nav-group { padding: 1.25rem .9rem .4rem; font-size: .68rem; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; color: rgb(216 180 118 / .6); }
+
+    /* ---------- material: top bar translusen ---------- */
+    .glass { background: rgb(247 243 228 / .72); -webkit-backdrop-filter: blur(20px) saturate(180%); backdrop-filter: blur(20px) saturate(180%); }
+    @media (prefers-reduced-transparency: reduce) { .glass { background: var(--color-cream); -webkit-backdrop-filter: none; backdrop-filter: none; } }
+
+    /* ---------- motif logo ---------- */
+    .sunburst { background:
+        repeating-conic-gradient(from -90deg at 50% 100%, rgb(237 162 74 / .22) 0 6deg, transparent 6deg 12deg),
+        radial-gradient(ellipse at 50% 100%, rgb(224 102 43 / .35), transparent 60%); }
+    .stripes { background: repeating-linear-gradient(to bottom, var(--color-amber) 0 3px, transparent 3px 9px); }
+    .grain::after { content: ''; position: absolute; inset: 0; pointer-events: none; opacity: .06; mix-blend-mode: overlay;
+        background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"); }
+
+    /* ---------- dialog / modal: tumbuh dari tombol pemicunya ---------- */
+    dialog.modal { margin: auto; padding: 0; border: 0; background: transparent; max-width: min(92vw, 34rem); width: 100%; color: var(--color-bean); overflow: visible; }
+    dialog.modal.modal-lg { max-width: min(94vw, 46rem); }
+    dialog.modal::backdrop { background: rgb(12 8 4 / .5); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+    dialog.modal .sheet { background: var(--color-paper); border-radius: 1.5rem; box-shadow: 0 30px 80px -20px rgb(12 8 4 / .55); max-height: 88vh; overflow: auto;
+        transform-origin: var(--ox, 50%) var(--oy, 50%); opacity: 0; transform: scale(.92) translateY(8px);
+        transition: transform 380ms var(--ease-spring), opacity 180ms; }
+    dialog.modal[open] .sheet { opacity: 1; transform: none; }
+    dialog.modal.closing .sheet { opacity: 0; transform: scale(.94); transition-duration: 160ms; }
+    @starting-style { dialog.modal[open] .sheet { opacity: 0; transform: scale(.92) translateY(8px); } }
+
+    /* ---------- toast ---------- */
+    #toasts { position: fixed; z-index: 100; left: 50%; bottom: 1.25rem; transform: translateX(-50%); display: flex; flex-direction: column; gap: .5rem; align-items: center; pointer-events: none; }
+    .toast { pointer-events: auto; display: flex; align-items: center; gap: .6rem; padding: .7rem 1.1rem; border-radius: 999px; background: var(--color-bean); color: var(--color-cream); font-size: .875rem; font-weight: 500;
+        box-shadow: 0 16px 40px -12px rgb(12 8 4 / .6); animation: toast-in 420ms var(--ease-spring) both; }
+    .toast.out { animation: toast-out 200ms ease-in both; }
+    @keyframes toast-in { from { opacity: 0; transform: translateY(14px) scale(.96); } }
+    @keyframes toast-out { to { opacity: 0; transform: translateY(8px) scale(.98); } }
+
+    /* ---------- reveal saat halaman dimuat ---------- */
+    .rise { animation: rise 600ms var(--ease-spring) both; animation-delay: calc(var(--i, 0) * 55ms); }
+    @keyframes rise { from { opacity: 0; transform: translateY(12px); } }
+
+    /* ---------- struk ---------- */
+    .receipt { font-family: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace; font-size: 12px; line-height: 1.5; color: #111; background: #fff; }
+    .receipt hr { border: 0; border-top: 1px dashed #777; margin: .6rem 0; }
+    .scrollbar-thin { scrollbar-width: thin; scrollbar-color: rgb(123 101 77 / .4) transparent; }
+    .no-scrollbar { scrollbar-width: none; }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .rise, .toast { animation: none !important; }
+    dialog.modal .sheet { transform: none !important; transition: opacity 150ms !important; }
+    .btn, .chip, .nav-link { transition: none !important; }
+}
+@media (prefers-contrast: more) {
+    .card, .input, .select, .textarea { border-color: var(--color-bean); }
+}
+
+@media print {
+    body * { visibility: hidden; }
+    .print-area, .print-area * { visibility: visible; }
+    .print-area { position: absolute; left: 0; top: 0; width: 80mm; box-shadow: none !important; border: 0 !important; }
+    @page { size: 80mm auto; margin: 4mm; }
 }
