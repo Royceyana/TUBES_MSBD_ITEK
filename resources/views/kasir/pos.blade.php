@@ -4,6 +4,7 @@
 @section('main-class', 'p-0')
 
 @section('content')
+@if ($errors->any())<script>addEventListener('DOMContentLoaded', () => toast(@json($errors->first())));</script>@endif
 <div class="lg:grid lg:h-[calc(100dvh-4.6rem)] lg:grid-cols-[1fr_24rem] xl:grid-cols-[1fr_26rem]">
 
     {{-- ===== Katalog menu ===== --}}
@@ -60,13 +61,15 @@
             <div><x-icon name="cart" size="size-10" class="mx-auto mb-3 opacity-50" /><p class="font-semibold text-bark-dark">Keranjang masih kosong</p><p class="text-sm">Ketuk menu untuk menambahkan.</p></div>
         </div>
 
-        <form id="checkout" method="POST" action="#" data-demo data-redirect="{{ url('/kasir/receipt') }}" class="space-y-4 border-t border-bark/12 bg-cream/60 p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+        <form id="checkout" method="POST" action="{{ route('kasir.orders.store') }}" class="space-y-4 border-t border-bark/12 bg-cream/60 p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
             @csrf
             {{-- Diskon --}}
             <div class="grid grid-cols-[7.5rem_1fr] gap-2">
                 <select id="disc-type" name="discount_type" class="select !min-h-10" aria-label="Jenis diskon"><option value="none">Tanpa diskon</option><option value="percent">Diskon %</option><option value="amount">Diskon Rp</option></select>
                 <input id="disc-val" name="discount_value" type="number" min="0" class="input num !min-h-10" placeholder="0" disabled aria-label="Nilai diskon">
             </div>
+            {{-- Pembayaran dipindah ke langkah "Bayar" (bagian berikutnya), sementara disembunyikan --}}
+            <div hidden>
             {{-- Metode bayar --}}
             <fieldset>
                 <legend class="sr-only">Metode pembayaran</legend>
@@ -84,14 +87,15 @@
                 <input id="paid" name="paid" type="number" min="0" inputmode="numeric" class="input num !min-h-12 text-lg font-bold" placeholder="Uang diterima" aria-label="Uang diterima">
                 <div class="no-scrollbar flex gap-2 overflow-x-auto" id="quick-cash"></div>
             </div>
+            </div>
 
             <dl class="num space-y-1.5 text-sm">
                 <div class="flex justify-between text-bark-dark"><dt>Subtotal</dt><dd id="t-sub">Rp 0</dd></div>
                 <div class="flex justify-between text-leaf"><dt>Diskon</dt><dd id="t-disc">− Rp 0</dd></div>
                 <div class="flex items-baseline justify-between border-t border-bark/12 pt-2 text-lg font-bold"><dt>Total</dt><dd id="t-total" class="display text-2xl">Rp 0</dd></div>
-                <div id="change-row" class="flex justify-between font-semibold"><dt id="change-label">Kembalian</dt><dd id="t-change">Rp 0</dd></div>
+                <div id="change-row" hidden class="flex justify-between font-semibold"><dt id="change-label">Kembalian</dt><dd id="t-change">Rp 0</dd></div>
             </dl>
-            <button id="pay-btn" class="btn btn-primary btn-lg w-full" disabled>Bayar <x-icon name="arrow" size="size-5" /></button>
+            <button id="pay-btn" class="btn btn-primary btn-lg w-full" disabled>Simpan pesanan <x-icon name="arrow" size="size-5" /></button>
         </form>
     </aside>
 </div>
@@ -140,7 +144,7 @@
         $('#change-label').textContent = short && paid ? 'Kurang' : 'Kembalian';
         $('#t-change').textContent = rupiah(Math.abs(paid - t.total) * (paid ? 1 : 0));
         $('#t-change').className = short && paid ? 'text-wine' : 'text-leaf';
-        $('#pay-btn').disabled = cart.size === 0 || short;
+        $('#pay-btn').disabled = cart.size === 0; // pembayaran belum divalidasi di langkah simpan
         // tombol uang pas + pecahan terdekat
         const q = $('#quick-cash'); q.innerHTML = '';
         if (t.total > 0) [t.total, ...[20000, 50000, 100000].filter((n) => n >= t.total)].slice(0, 4).forEach((n, k) => {

@@ -9,7 +9,9 @@
             <x-icon name="search" size="size-[1.1rem]" class="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-bark" />
             <input type="search" data-search="#trx-rows tr" class="input !pl-11" placeholder="Cari nomor / menu…" aria-label="Cari transaksi">
         </div>
-        <input type="date" class="input !w-auto" value="{{ now()->toDateString() }}" aria-label="Tanggal">
+        <form method="GET" action="{{ route('kasir.history') }}">
+            <input type="date" name="date" class="input !w-auto" value="{{ $date }}" onchange="this.form.submit()" aria-label="Tanggal">
+        </form>
     </div>
     <div class="overflow-x-auto px-2 pb-3 md:px-4">
         <table class="tbl min-w-[40rem]">
@@ -22,8 +24,14 @@
                         <td class="max-w-64 truncate text-bark-dark">{{ $t->items }}</td>
                         <td>{{ $t->method }}</td>
                         <td class="num r font-bold">Rp {{ number_format($t->total, 0, ',', '.') }}</td>
-                        <td><span class="badge {{ $t->status === 'paid' ? 'badge-ok' : 'badge-bad' }}">{{ $t->status === 'paid' ? 'Lunas' : 'Batal' }}</span></td>
-                        <td class="r"><a href="{{ url('/kasir/receipt') }}" class="btn btn-ghost btn-sm"><x-icon name="printer" size="size-4" /> Struk</a></td>
+                        <td><span class="badge {{ ['paid' => 'badge-ok', 'pending' => 'badge-warn', 'void' => 'badge-bad'][$t->status] ?? 'badge-mute' }}">{{ ['paid' => 'Lunas', 'pending' => 'Belum bayar', 'void' => 'Batal'][$t->status] ?? $t->status }}</span></td>
+                        <td class="r">
+                            @if ($t->status === 'paid')
+                                <a href="{{ route('kasir.orders.receipt', $t->id) }}" class="btn btn-ghost btn-sm"><x-icon name="printer" size="size-4" /> Struk</a>
+                            @elseif ($t->status === 'pending')
+                                <a href="{{ route('kasir.orders.pay', $t->id) }}" class="btn btn-primary btn-sm">Bayar</a>
+                            @endif
+                        </td>
                     </tr>
                 @endforeach
             </tbody>
