@@ -84,12 +84,7 @@ Route::prefix('admin')->group(function () use ($categories, $menus, $ingredients
 
 // ---------- Kasir ----------
 Route::prefix('kasir')->group(function () use ($categories, $menus, $transactions, $o) {
-    Route::get('dashboard', fn () => view('kasir.dashboard', [
-        'stats' => ['count' => 18, 'revenue' => 612000, 'cash' => 348000, 'cashless' => 264000],
-        'recent' => $transactions->take(4),
-    ]));
-    Route::get('pos', fn () => view('kasir.pos', ['categories' => $categories, 'menus' => $menus->where('status', 'active')->values()]));
-    Route::get('history', fn () => view('kasir.history', compact('transactions')));
+    // Route 'kasir/dashboard', 'kasir/pos', dan 'kasir/history' dipindah ke routes/web.php (PosController)
     Route::get('receipt', fn () => view('kasir.receipt', ['trx' => $o([
         'number' => 'INV-0142', 'date' => now()->format('d/m/Y H:i'), 'cashier' => 'Dimas',
         'items' => collect([['name' => 'Kopi Susu Kaleng', 'qty' => 2, 'price' => 15000], ['name' => 'Roti Bakar Coklat Keju', 'qty' => 1, 'price' => 12000]])->map(fn ($i) => (object) $i),
