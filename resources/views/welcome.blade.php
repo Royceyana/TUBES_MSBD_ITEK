@@ -88,7 +88,7 @@
     <div class="mx-auto grid max-w-6xl items-center gap-10 px-5 py-16 md:grid-cols-[1fr_1.15fr] md:gap-16 md:px-10 md:py-24">
         <div>
             <h2 class="display text-6xl md:text-7xl">Mampir</h2>
-            <p class="script -mt-1 ml-8 text-4xl text-clay-dark">ke Jl. Jamin Ginting</p>
+            <p class="script -mt-1 ml-8 text-4xl text-clay-dark">ke Kafe Kaleng</p>
             <address class="mt-8 text-xl not-italic leading-relaxed">Jl. Jamin Ginting Gg. Senina No.11<br>Medan, Indonesia 20155</address>
             <div class="mt-8 flex flex-wrap items-center gap-3">
                 <a href="{{ $maps }}" target="_blank" rel="noopener" class="btn btn-dark">Buka di Google Maps</a>
