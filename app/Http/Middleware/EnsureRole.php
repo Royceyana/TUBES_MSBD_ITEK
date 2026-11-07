@@ -4,16 +4,11 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Membatasi rute berdasarkan role pengguna.
- *
- *   Route::middleware(['auth', 'role:kasir'])->prefix('kasir')->group(...);
- *   Route::middleware(['auth', 'role:waitress,kasir'])->group(...);   // salah satu dari role ini
- *
- * Akun berstatus `inactive` dikeluarkan dari sesi walau masih login.
+ * Membatasi rute berdasarkan kolom users.role (admin | kasir | dapur | owner).
+ * Pemakaian: ->middleware('role:kasir') atau 'role:admin,owner'.
  */
 class EnsureRole
 {
@@ -25,17 +20,8 @@ class EnsureRole
             return redirect()->guest(route('login'));
         }
 
-        if (! $user->isActive()) {
-            Auth::logout();
-            $request->session()->invalidate();
-            $request->session()->regenerateToken();
-
-            return redirect()->route('login')
-                ->withErrors(['email' => 'Akun Anda dinonaktifkan. Hubungi admin.']);
-        }
-
-        if ($roles !== [] && ! $user->hasRole(...$roles)) {
-            abort(403);
+        if (! in_array($user->role, $roles, true)) {
+            abort(403, 'Akun Anda tidak punya akses ke halaman ini.');
         }
 
         return $next($request);

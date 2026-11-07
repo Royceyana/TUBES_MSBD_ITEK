@@ -1,125 +1,107 @@
 @extends('layouts.guest')
-@section('title', 'Kafe Kaleng — Kafe Vintage Ramah Kantong, Medan')
+@section('title', 'Kafe Kaleng | Kafe vintage ramah kantong di Medan')
+
+@php
+    $maps = 'https://www.google.com/maps/search/?api=1&query='.urlencode('Kafe Kaleng Jl. Jamin Ginting Gg. Senina No.11 Medan');
+    $byCat = $menus->groupBy('category_id');
+@endphp
 
 @section('content')
-{{-- Navbar translusen --}}
-<header class="glass fixed inset-x-0 top-0 z-50 border-b border-bark/10">
-    <div class="mx-auto flex max-w-6xl items-center justify-between px-5 py-3">
-        <a href="{{ url('/') }}" class="flex items-center gap-3"><x-logo size="size-10" /><span class="display text-xl">KAFE KALENG</span></a>
-        <nav class="hidden items-center gap-7 text-sm font-semibold text-bark-dark md:flex" aria-label="Halaman">
-            <a href="#tentang" class="hover:text-bean">Tentang</a>
-            <a href="#menu" class="hover:text-bean">Menu</a>
-            <a href="#sistem" class="hover:text-bean">Sistem</a>
-            <a href="#lokasi" class="hover:text-bean">Lokasi</a>
-        </nav>
-        <a href="{{ url('/login') }}" class="btn btn-dark btn-sm">Masuk <x-icon name="arrow" size="size-4" /></a>
+{{-- ===== HERO: foto tampak depan kafe; judul besar di dua sisi, kata miring di kanan bawah (acuan: Landing_Page.jpg) ===== --}}
+<section class="relative isolate bg-espresso text-white md:h-[100svh] md:min-h-[600px] md:overflow-hidden">
+    <div class="aspect-[4/3] md:absolute md:inset-0 md:-z-20 md:aspect-auto">
+        <img src="{{ asset('images/hero-kafe-kaleng.webp') }}" width="1920" height="1080" fetchpriority="high"
+             alt="Papan kayu bertuliskan Kafe Kaleng dengan huruf kuningan di dinding batu berhias tanaman rambat, diterangi lampu gantung"
+             class="size-full object-cover object-[50%_40%]">
     </div>
-</header>
+    <div class="absolute inset-0 -z-10 hidden md:block" aria-hidden="true"
+         style="background: linear-gradient(to bottom, rgb(20 8 3 / .62), rgb(20 8 3 / 0) 28%), linear-gradient(to top, rgb(20 8 3 / .82), rgb(20 8 3 / 0) 48%)"></div>
 
-{{-- HERO --}}
-<section class="relative isolate overflow-hidden bg-bean pt-28 text-cream grain">
-    <div class="sunburst absolute inset-x-0 bottom-0 -z-10 h-[75%] opacity-90" aria-hidden="true"></div>
-    <div class="mx-auto grid max-w-6xl items-center gap-10 px-5 pb-24 md:grid-cols-[1.15fr_.85fr] md:pb-32">
-        <div>
-            <p class="rise inline-flex items-center gap-2 rounded-full border border-sand/30 px-3.5 py-1.5 text-xs font-semibold uppercase tracking-[.16em] text-sand" style="--i:0">
-                <x-icon name="pin" size="size-3.5" /> Jl. Jamin Ginting, Medan
-            </p>
-            <h1 class="display rise mt-6 text-5xl text-cream sm:text-6xl md:text-7xl" style="--i:1">
-                Kafe vintage,<br><span class="text-amber">ramah kantong.</span>
+    <header class="absolute inset-x-0 top-0 z-10">
+        <div class="mx-auto flex max-w-[1600px] items-center justify-between gap-6 px-5 py-4 md:px-10">
+            <a href="{{ url('/') }}" class="flex items-center gap-3" aria-label="Kafe Kaleng, beranda">
+                <x-logo size="h-12 w-auto md:h-14" />
+                <span class="display hidden text-xl sm:inline">Kafe Kaleng</span>
+            </a>
+            <nav class="flex items-center gap-5 text-sm font-semibold md:gap-8 md:text-base" aria-label="Halaman">
+                <a href="#menu" class="hover:underline hover:underline-offset-8">Menu</a>
+                <a href="#lokasi" class="hover:underline hover:underline-offset-8">Lokasi</a>
+                <a href="{{ route('login') }}" class="btn btn-light btn-sm">Masuk</a>
+            </nav>
+        </div>
+    </header>
+
+    <div class="px-5 pb-10 pt-8 md:absolute md:inset-x-0 md:bottom-0 md:px-10 md:pb-14 md:pt-0">
+        <div class="mx-auto max-w-[1600px]">
+            <h1 class="hero-title flex flex-col text-[22vw] sm:text-[19vw] md:flex-row md:justify-between md:text-[11vw]">
+                <span>Makan</span><span class="md:text-right">Ngopi</span>
             </h1>
-            <p class="rise mt-6 max-w-lg text-lg text-cream/75" style="--i:2">
-                Nongkrong di antara pelat besi antik dan aroma kopi sejak 2015. Menu rumahan enak, harga mahasiswa — dekat kampus USU.
-            </p>
-            <div class="rise mt-9 flex flex-wrap gap-3" style="--i:3">
-                <a href="#menu" class="btn btn-primary btn-lg">Lihat menu</a>
-                <a href="{{ url('/login') }}" class="btn btn-lg border-cream/25 text-cream hover:bg-white/10">Masuk staf</a>
+            <p class="hero-script mt-2 text-right text-[2rem] md:-mt-1 md:text-[clamp(2rem,3.8vw,4rem)]">Selamat datang</p>
+        </div>
+    </div>
+</section>
+
+{{-- ===== Pengantar ===== --}}
+<section class="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-8 px-5 py-14 md:px-10 md:py-20">
+    <p class="max-w-xl text-xl leading-relaxed md:text-2xl">Kafe vintage ramah kantong di Jl. Jamin Ginting, Medan. Menu rumahan yang enak, kopi, dan barang antik yang boleh dibawa pulang.</p>
+    <div class="flex flex-wrap items-center gap-3">
+        <a href="#menu" class="btn btn-primary btn-lg">Lihat menu</a>
+        <a href="#lokasi" class="btn btn-line btn-lg">Cari lokasi</a>
+    </div>
+</section>
+
+{{-- ===== MENU: data asli dari tabel menus & categories ===== --}}
+<section id="menu" class="mx-auto max-w-6xl scroll-mt-6 px-5 pb-20 md:px-10 md:pb-28">
+    <div class="page-head">
+        <div><h2 class="display text-5xl md:text-6xl">Menu</h2><span class="script ml-6 block text-3xl text-clay">makan &amp; minum</span></div>
+    </div>
+
+    @if ($menus->isEmpty())
+        <p class="muted mt-12 text-lg">Menu belum diisi. Silakan cek lagi nanti.</p>
+    @else
+        <div class="mt-10 flex flex-wrap gap-2" role="group" aria-label="Filter kategori" data-filter="#menu-groups > section">
+            <button type="button" class="chip" aria-pressed="true" data-cat="all">Semua</button>
+            @foreach ($categories as $c)
+                @if ($byCat->has($c->id))<button type="button" class="chip" aria-pressed="false" data-cat="{{ $c->id }}">{{ $c->name }}</button>@endif
+            @endforeach
+        </div>
+
+        <div id="menu-groups" class="mt-10 gap-x-20 md:columns-2">
+            @foreach ($categories as $c)
+                @continue(! $byCat->has($c->id))
+                <section data-cat="{{ $c->id }}" class="mb-10 break-inside-avoid">
+                    <h3 class="script border-b-2 border-cocoa pb-2 text-4xl">{{ $c->name }}</h3>
+                    <ul class="mt-3">
+                        @foreach ($byCat[$c->id] as $m)
+                            <li class="menu-line"><span class="font-semibold">{{ $m->name }}</span><span class="dots" aria-hidden="true"></span><span class="price">{{ number_format($m->price, 0, ',', '.') }}</span></li>
+                        @endforeach
+                    </ul>
+                </section>
+            @endforeach
+        </div>
+        <p class="muted mt-2 text-sm">Harga dalam rupiah.</p>
+    @endif
+</section>
+
+{{-- ===== LOKASI: pita blush, penutup seperti bagian "New drink" di acuan ===== --}}
+<footer id="lokasi" class="band scroll-mt-0">
+    <div class="mx-auto grid max-w-6xl items-center gap-10 px-5 py-16 md:grid-cols-[1fr_1.15fr] md:gap-16 md:px-10 md:py-24">
+        <div>
+            <h2 class="display text-6xl md:text-7xl">Mampir</h2>
+            <p class="script -mt-1 ml-8 text-4xl text-clay-dark">ke Jl. Jamin Ginting</p>
+            <address class="mt-8 text-xl not-italic leading-relaxed">Jl. Jamin Ginting Gg. Senina No.11<br>Medan, Indonesia 20155</address>
+            <div class="mt-8 flex flex-wrap items-center gap-3">
+                <a href="{{ $maps }}" target="_blank" rel="noopener" class="btn btn-dark">Buka di Google Maps</a>
+                <a href="https://instagram.com/kafekaleng_medan" target="_blank" rel="noopener" class="btn btn-line">@kafekaleng_medan</a>
             </div>
         </div>
-        <div class="rise relative mx-auto aspect-square w-full max-w-sm" style="--i:2">
-            <div class="absolute inset-0 rounded-full bg-amber/20 blur-3xl"></div>
-            <x-logo size="size-full" class="relative drop-shadow-[0_30px_60px_rgba(237,162,74,.35)]" />
-        </div>
+        <img src="{{ asset('images/tampak-depan.webp') }}" width="1024" height="468" loading="lazy"
+             alt="Tampak depan Kafe Kaleng: dinding batu alam, papan kayu bertuliskan Kafe Kaleng, dan pintu masuk yang terbuka"
+             class="h-auto w-full rounded-md">
     </div>
-    <div class="stripes h-3 opacity-80" aria-hidden="true"></div>
-</section>
-
-{{-- TENTANG --}}
-<section id="tentang" class="mx-auto max-w-6xl scroll-mt-20 px-5 py-20">
-    <div class="grid gap-10 md:grid-cols-3">
-        <div class="md:col-span-1">
-            <p class="eyebrow">Tentang kami</p>
-            <h2 class="display mt-3 text-4xl">Tempat singgah yang bikin betah.</h2>
-        </div>
-        <div class="grid gap-5 sm:grid-cols-3 md:col-span-2">
-            @foreach ([['Sejak 2015', 'Hampir sepuluh tahun menemani mahasiswa dan warga Medan ngopi santai.', 'clock'], ['Menu rumahan', 'Makanan dan minuman sederhana yang enak, dengan harga yang tetap ramah.', 'coffee'], ['Barang antik', 'Dekorasi pelat vintage, motor klasik, dan barang antik yang juga bisa dibawa pulang.', 'star']] as $i => [$t, $d, $ic])
-                <article class="card card-pad rise" style="--i:{{ $i }}">
-                    <div class="grid size-11 place-items-center rounded-2xl bg-amber-soft text-amber-deep"><x-icon :name="$ic" /></div>
-                    <h3 class="mt-4 text-lg font-bold">{{ $t }}</h3>
-                    <p class="mt-1.5 text-sm text-bark-dark">{{ $d }}</p>
-                </article>
-            @endforeach
-        </div>
+    <div class="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 border-t border-cocoa/25 px-5 py-5 text-sm md:px-10">
+        <span>© {{ date('Y') }} Kafe Kaleng, Medan</span>
+        <a href="{{ route('login') }}" class="link">Masuk untuk staf</a>
     </div>
-</section>
-
-{{-- MENU (contoh statis; sambungkan ke tabel menus bila ingin dinamis) --}}
-<section id="menu" class="scroll-mt-20 bg-parchment py-20">
-    <div class="mx-auto max-w-6xl px-5">
-        <div class="flex flex-wrap items-end justify-between gap-4">
-            <div><p class="eyebrow">Favorit pelanggan</p><h2 class="display mt-3 text-4xl">Mulai dari 10 ribuan.</h2></div>
-            <p class="max-w-sm text-sm text-bark-dark">Daftar harga lengkap tersedia di kasir. Menu di bawah hanya contoh tampilan.</p>
-        </div>
-        <div class="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-            @foreach ([['Kopi Susu Kaleng', 'Kopi', '#eda24a'], ['Es Teh Manis', 'Non-kopi', '#d8b476'], ['Mie Goreng Rumahan', 'Makanan', '#e0662b'], ['Roti Bakar', 'Camilan', '#7b654d']] as $i => [$n, $k, $c])
-                <article class="card group overflow-hidden rise" style="--i:{{ $i }}">
-                    <div class="relative grid aspect-[4/3] place-items-center overflow-hidden" style="background:{{ $c }}22">
-                        <div class="sunburst absolute inset-0 opacity-60"></div>
-                        <x-icon name="coffee" size="size-16" class="relative text-bean/80 transition duration-500 group-hover:scale-110 group-hover:-rotate-6" />
-                    </div>
-                    <div class="p-4"><p class="eyebrow">{{ $k }}</p><h3 class="mt-1 font-bold">{{ $n }}</h3></div>
-                </article>
-            @endforeach
-        </div>
-    </div>
-</section>
-
-{{-- SISTEM --}}
-<section id="sistem" class="mx-auto max-w-6xl scroll-mt-20 px-5 py-20">
-    <p class="eyebrow">Sistem manajemen</p>
-    <h2 class="display mt-3 max-w-2xl text-4xl">Satu aplikasi, tiga peran.</h2>
-    <div class="mt-10 grid gap-5 md:grid-cols-3">
-        @foreach ([
-            ['Admin', 'Kelola menu, kategori, bahan baku, resep, dan stok harian.', 'package', '/admin/dashboard'],
-            ['Kasir', 'Catat pesanan cepat, hitung kembalian, cetak struk — stok berkurang otomatis.', 'cart', '/kasir/pos'],
-            ['Owner', 'Pantau penjualan, laba-rugi, dan stok kritis lewat grafik yang jelas.', 'chart', '/owner/dashboard'],
-        ] as $i => [$r, $d, $ic, $u])
-            <a href="{{ url('/login') }}" class="card card-pad group rise block transition duration-300 hover:-translate-y-1 hover:shadow-xl active:scale-[.98]" style="--i:{{ $i }}">
-                <div class="grid size-12 place-items-center rounded-2xl bg-bean text-amber"><x-icon :name="$ic" /></div>
-                <h3 class="mt-5 text-xl font-bold">{{ $r }}</h3>
-                <p class="mt-2 text-sm text-bark-dark">{{ $d }}</p>
-                <span class="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-amber-deep">Masuk sebagai {{ strtolower($r) }} <x-icon name="arrow" size="size-4" class="transition group-hover:translate-x-1" /></span>
-            </a>
-        @endforeach
-    </div>
-</section>
-
-{{-- LOKASI + footer --}}
-<footer id="lokasi" class="scroll-mt-20 bg-bean text-cream">
-    <div class="stripes h-2 opacity-70"></div>
-    <div class="mx-auto grid max-w-6xl gap-8 px-5 py-14 md:grid-cols-[1.2fr_1fr_1fr]">
-        <div>
-            <div class="flex items-center gap-3"><x-logo size="size-12" /><span class="display text-2xl">KAFE KALENG</span></div>
-            <p class="mt-4 max-w-xs text-sm text-cream/65">Kafe vintage ramah kantong. Menu rumahan enak, jual barang antik.</p>
-        </div>
-        <div>
-            <p class="eyebrow !text-sand">Alamat</p>
-            <p class="mt-3 text-sm text-cream/80">Jl. Jamin Ginting Gg. Senina No.11<br>Medan, Indonesia 20155</p>
-        </div>
-        <div>
-            <p class="eyebrow !text-sand">Sosial media</p>
-            <a href="https://instagram.com/kafekaleng_medan" class="mt-3 inline-block text-sm text-cream/80 underline decoration-amber/60 underline-offset-4 hover:text-amber" target="_blank" rel="noopener">@kafekaleng_medan</a>
-        </div>
-    </div>
-    <p class="border-t border-white/10 px-5 py-5 text-center text-xs text-cream/45">© {{ date('Y') }} Kafe Kaleng · Proyek Tubes MSBD</p>
 </footer>
 @endsection

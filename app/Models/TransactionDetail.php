@@ -3,19 +3,14 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Attributes\Fillable;
-use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-/** Baris item pesanan. subtotal = qty x harga menu saat dipesan (diisi aplikasi). */
-#[Table(timestamps: false)]
+/** transaction_details(transaction_id, menu_id, qty, subtotal). Nama & harga diambil lewat relasi menu. */
 #[Fillable(['transaction_id', 'menu_id', 'qty', 'subtotal'])]
 class TransactionDetail extends Model
 {
-    protected function casts(): array
-    {
-        return ['subtotal' => 'decimal:2'];
-    }
+    public $timestamps = false;
 
     public function transaction(): BelongsTo
     {

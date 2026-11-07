@@ -1,102 +1,122 @@
 @extends('layouts.app')
-@section('title', 'Pembayaran '.$transaction->invoice_number.' — Kafe Kaleng')
-@section('page-heading', 'Pembayaran')
-@section('actions')<a href="{{ route('kasir.pos') }}" class="btn btn-ghost btn-sm">Kembali ke kasir</a>@endsection
+@section('title', 'Pembayaran '.$transaction->number.' | Kafe Kaleng')
 
 @section('content')
-@if ($errors->any())<script>addEventListener('DOMContentLoaded', () => toast(@json($errors->first())));</script>@endif
+<x-page-head title="Pembayaran" :script="$transaction->number">
+    <a href="{{ route('kasir.pos') }}" class="btn btn-line btn-sm">Kembali ke kasir</a>
+</x-page-head>
 
-<div class="mx-auto grid max-w-4xl gap-6 md:grid-cols-[1fr_22rem] md:items-start">
-
-    {{-- ===== Ringkasan pesanan ===== --}}
-    <section class="card card-pad rise">
-        <p class="eyebrow">Ringkasan pesanan</p>
-        <h2 class="num text-xl font-bold">{{ $transaction->invoice_number }}</h2>
-        <ul class="mt-3 divide-y divide-bark/10">
-            @foreach ($transaction->details as $d)
-                <li class="flex items-center gap-3 py-3">
-                    <div class="min-w-0 flex-1">
-                        <p class="truncate text-sm font-semibold">{{ $d->menu_name }}</p>
-                        <p class="num text-xs text-bark">{{ $d->qty }} × Rp {{ number_format($d->price, 0, ',', '.') }}</p>
-                    </div>
-                    <p class="num text-sm font-bold">Rp {{ number_format($d->subtotal, 0, ',', '.') }}</p>
-                </li>
-            @endforeach
-        </ul>
-        <dl class="num mt-3 space-y-1.5 border-t border-bark/12 pt-3 text-sm">
-            <div class="flex justify-between text-bark-dark"><dt>Subtotal</dt><dd>Rp {{ number_format($transaction->subtotal, 0, ',', '.') }}</dd></div>
-            @if ($transaction->discount_amount > 0)
-                <div class="flex justify-between text-leaf"><dt>Diskon</dt><dd>− Rp {{ number_format($transaction->discount_amount, 0, ',', '.') }}</dd></div>
-            @endif
-            <div class="flex items-baseline justify-between text-lg font-bold"><dt>Total</dt><dd class="display text-2xl">Rp {{ number_format($transaction->total, 0, ',', '.') }}</dd></div>
-        </dl>
+<div class="mt-10 grid gap-12 md:grid-cols-[1.1fr_1fr] md:gap-0">
+    {{-- Ringkasan pesanan --}}
+    <section class="md:pr-12" aria-labelledby="sum-h">
+        <h2 id="sum-h" class="script text-4xl">Ringkasan pesanan</h2>
+        <p class="muted mt-1 text-sm">@if ($transaction->table_no)Meja {{ $transaction->table_no }}@else Bawa pulang @endif</p>
+        <table class="tbl mt-4">
+            <thead><tr><th>Menu</th><th class="r">Jumlah</th><th class="r">Subtotal</th></tr></thead>
+            <tbody>
+                @foreach ($transaction->details as $d)
+                    <tr><td class="font-semibold">{{ $d->menu->name ?? 'Menu dihapus' }}</td><td class="num r">{{ $d->qty }}</td><td class="num r">{{ number_format($d->subtotal, 0, ',', '.') }}</td></tr>
+                @endforeach
+            </tbody>
+            <tfoot><tr><td colspan="2">Subtotal</td><td class="num r display text-2xl">Rp {{ number_format($transaction->subtotal, 0, ',', '.') }}</td></tr></tfoot>
+        </table>
     </section>
 
-    {{-- ===== Pembayaran ===== --}}
-    <section class="card card-pad rise space-y-4" style="--i:1">
-        <form id="pay-form" method="POST" action="{{ route('kasir.orders.pay.store', $transaction) }}" class="space-y-4">
+    {{-- Pembayaran --}}
+    <section class="md:border-l md:border-sand-2 md:pl-12" aria-labelledby="pay-h">
+        <h2 id="pay-h" class="script text-4xl">Cara bayar</h2>
+        <form id="pay-form" method="POST" action="{{ route('kasir.orders.pay.store', $transaction) }}" class="mt-4 space-y-5">
             @csrf
+
+            <div class="grid grid-cols-[1fr_1fr] gap-3">
+                <div>
+                    <label for="discount_type" class="label">Diskon</label>
+                    <select id="discount_type" name="discount_type" class="select">
+                        <option value="none" @selected(old('discount_type', 'none') === 'none')>Tanpa diskon</option>
+                        <option value="percent" @selected(old('discount_type') === 'percent')>Persen (%)</option>
+                        <option value="amount" @selected(old('discount_type') === 'amount')>Nominal (Rp)</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="discount_value" class="label">Besar diskon</label>
+                    <input id="discount_value" name="discount_value" type="number" min="0" step="any" inputmode="decimal" value="{{ old('discount_value') }}" class="input num" disabled @error('discount_value') aria-invalid="true" @enderror>
+                    @error('discount_value')<p class="error-text">{{ $message }}</p>@enderror
+                </div>
+            </div>
+
             <fieldset>
-                <legend class="sr-only">Metode pembayaran</legend>
-                <div class="grid grid-cols-3 gap-2">
-                    @foreach ([['cash', 'Tunai', 'cash'], ['qris', 'QRIS', 'wallet'], ['debit', 'Debit', 'card']] as [$v, $l, $ic])
-                        <label class="cursor-pointer">
+                <legend class="label">Metode pembayaran</legend>
+                <div class="grid grid-cols-3 gap-3">
+                    @foreach (['cash' => 'Tunai', 'qris' => 'QRIS', 'debit' => 'Debit'] as $v => $l)
+                        <label class="block">
                             <input type="radio" name="payment_method" value="{{ $v }}" class="peer sr-only" @checked(old('payment_method', 'cash') === $v)>
-                            <span class="flex flex-col items-center gap-1 rounded-2xl border border-bark/25 bg-paper py-2.5 text-xs font-semibold text-bark-dark transition active:scale-95 peer-checked:border-bean peer-checked:bg-bean peer-checked:text-cream peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-amber-deep"><x-icon :name="$ic" size="size-5" />{{ $l }}</span>
+                            <span class="block rounded-md border-2 border-sand-2 py-3.5 text-center font-bold transition peer-checked:border-clay peer-checked:bg-clay peer-checked:text-white peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-clay">{{ $l }}</span>
                         </label>
                     @endforeach
                 </div>
             </fieldset>
 
-            <div id="cash-box" class="space-y-2">
-                <input id="paid" name="paid" type="number" min="0" inputmode="numeric" value="{{ old('paid') }}" class="input num !min-h-12 text-lg font-bold" placeholder="Uang diterima" aria-label="Uang diterima">
-                <div class="no-scrollbar flex gap-2 overflow-x-auto" id="quick-cash"></div>
+            <p class="num flex items-baseline justify-between border-t-2 border-cocoa pt-4 text-sm font-bold text-muted" id="disc-row" hidden><span>Diskon</span><span id="t-disc">− Rp 0</span></p>
+            <p class="num flex items-baseline justify-between text-lg font-bold"><span>Total bayar</span><span id="t-total" class="display text-4xl">Rp {{ number_format($transaction->subtotal, 0, ',', '.') }}</span></p>
+
+            <div id="cash-box" class="space-y-3">
+                <div>
+                    <label for="paid" class="label">Uang diterima</label>
+                    <input id="paid" name="paid" type="number" min="0" inputmode="numeric" value="{{ old('paid') }}" class="input num !min-h-14 text-xl font-extrabold" @error('paid') aria-invalid="true" @enderror>
+                    @error('paid')<p class="error-text">{{ $message }}</p>@enderror
+                </div>
+                <div class="flex flex-wrap gap-2" id="quick-cash" aria-label="Nominal cepat"></div>
+                <p id="change-row" class="num flex items-baseline justify-between text-lg font-bold"><span id="change-label">Kembalian</span><span id="t-change" class="display text-3xl">Rp 0</span></p>
             </div>
 
-            <div id="change-row" class="num flex justify-between font-semibold"><span id="change-label">Kembalian</span><span id="t-change">Rp 0</span></div>
-
-            <button id="pay-btn" class="btn btn-primary btn-lg w-full" disabled>Bayar <x-icon name="check" size="size-5" /></button>
+            <button id="pay-btn" class="btn btn-primary btn-lg w-full" disabled>Terima pembayaran</button>
         </form>
 
-        {{-- Batal hanya bisa saat belum dibayar --}}
-        <form method="POST" action="{{ route('kasir.orders.void', $transaction) }}" data-confirm="Pesanan {{ $transaction->invoice_number }} akan dibatalkan dan stok bahan dikembalikan. Pesanan yang sudah dibatalkan tidak bisa dibuka lagi.">
+        <form method="POST" action="{{ route('kasir.orders.void', $transaction) }}" class="mt-4"
+              data-confirm="Pesanan {{ $transaction->number }} akan dibatalkan. Pesanan yang sudah dibatalkan tidak bisa dibuka lagi." data-confirm-yes="Ya, batalkan">
             @csrf
-            <button class="btn btn-ghost w-full">Batalkan pesanan</button>
+            <button class="btn btn-danger w-full">Batalkan pesanan</button>
         </form>
     </section>
 </div>
 
 @push('scripts')
 <script>
-(() => {
+addEventListener('DOMContentLoaded', () => {
     const $ = (s) => document.querySelector(s);
-    const total = {{ (int) $transaction->total }};
+    const subtotal = {{ (int) $transaction->subtotal }};
     const f = $('#pay-form');
-
+    // Sama dengan fn_calc_discount() di database
+    const discount = () => {
+        const type = f.discount_type.value, v = Number(f.discount_value.value) || 0;
+        const d = type === 'percent' ? Math.round(subtotal * Math.min(v, 100) / 100) : type === 'amount' ? v : 0;
+        return Math.min(subtotal, Math.max(0, d));
+    };
     const render = () => {
+        const disc = discount(), total = subtotal - disc;
         const cash = f.payment_method.value === 'cash';
         const paid = Number($('#paid').value) || 0;
         const short = cash && paid < total;
-        $('#cash-box').classList.toggle('hidden', !cash);
-        $('#change-row').classList.toggle('hidden', !cash);
+        f.discount_value.disabled = f.discount_type.value === 'none';
+        $('#disc-row').hidden = disc === 0;
+        $('#t-disc').textContent = '− ' + rupiah(disc);
+        $('#t-total').textContent = rupiah(total);
+        $('#cash-box').hidden = !cash;
         $('#change-label').textContent = short && paid ? 'Kurang' : 'Kembalian';
         $('#t-change').textContent = rupiah(paid ? Math.abs(paid - total) : 0);
-        $('#t-change').className = short && paid ? 'text-wine' : 'text-leaf';
+        $('#t-change').style.color = short && paid ? 'var(--color-bad)' : '';
         $('#pay-btn').disabled = short;
-
         const q = $('#quick-cash'); q.innerHTML = '';
         [total, ...[20000, 50000, 100000].filter((n) => n > total)].slice(0, 4).forEach((n, k) => {
             const b = document.createElement('button');
-            b.type = 'button'; b.className = 'chip !py-1.5 text-xs';
-            b.textContent = k === 0 ? 'Uang pas' : rupiah(n);
+            b.type = 'button'; b.className = 'chip'; b.textContent = k === 0 ? 'Uang pas' : rupiah(n);
             b.onclick = () => { $('#paid').value = n; render(); };
             q.appendChild(b);
         });
     };
-
     ['input', 'change'].forEach((ev) => f.addEventListener(ev, render));
     render();
-})();
+});
 </script>
 @endpush
 @endsection
