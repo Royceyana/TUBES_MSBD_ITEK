@@ -1,33 +1,35 @@
-# UI Kafe Kaleng — panduan integrasi (Frontend → tim)
+# Kafe Kaleng — catatan frontend & basis data
 
-## Pasang
-1. Salin isi folder ini ke root project Laravel (timpa `resources/`, `routes/web.php`, `vite.config.js`).
-2. Hapus `resources/views/dashboard.blade.php` & `resources/views/layouts/app.blade.php` lama (sudah digantikan).
-3. `npm install && npm run dev`, lalu `php artisan serve`.
-4. Buka `/` (landing), `/login`, lalu tombol pratinjau role (muncul saat `APP_DEBUG=true`).
-5. (Opsional) simpan logo asli di `public/images/logo.png` — otomatis dipakai menggantikan logo SVG.
+Skema basis data mengikuti **`kafe_kaleng.sql`** (PostgreSQL). Berkas itu satu-satunya sumber skema:
+tabel, view (`v_menu_availability`, `v_menu_hpp`, `v_ingredient_stock`), dan trigger stok.
+SQL terbaru juga memuat tabel framework (sessions, cache, jobs, migrations), jadi `php artisan migrate` aman dijalankan.
+Migrasi Laravel lama untuk users/transaksi/kategori/menu sudah dikosongkan agar tidak bentrok.
 
-## Konvensi untuk backend
-- **Role** layout dibaca dari `auth()->user()->role`; fallback ke segmen URL (`/admin`, `/kasir`, `/owner`).
-- Form berlabel `data-demo` **tidak dikirim** ke server (hanya tampilkan toast). Hapus atribut itu dan isi `action`/`method` saat controller siap.
-- Data contoh ada di `routes/ui-preview.php`; bentuk variabel sama dengan Eloquent (`$menu->name`, `$ing->stock_qty`, dst).
-- Flash message: `->with('success', '…')` otomatis jadi toast.
-- Hapus: tambahkan `data-confirm="teks"` pada `<form>` untuk memunculkan dialog konfirmasi.
+## Menjalankan
+```bash
+createdb kafe_kaleng && psql -d kafe_kaleng -f kafe_kaleng.sql
+cp .env.example .env && php artisan key:generate     # isi DB_PASSWORD
+php artisan migrate                                  # aman: tabel framework sudah ada di SQL
+php artisan storage:link                             # foto menu
+composer install && npm install && npm run build     # atau npm run dev
+rm -f public/hot                                     # jika sisa dev server lama
+php artisan serve
+```
+Akun contoh dari SQL: `admin@`, `kasir@`, `dapur@`, `waitress@`, `owner@kafekaleng.test`, kata sandi `kaleng123`.
+Semua stok bahan di SQL bernilai 0, jadi menu tampil "Stok habis" di kasir sampai admin mencatat **Stok masuk**.
 
-## Variabel tiap view
-| View | Variabel |
-|---|---|
-| admin.dashboard | `$stats[menus,categories,ingredients,today]`, `$lowStock`, `$movements` |
-| admin.categories | `$categories` (+`menus_count`) |
-| admin.menus | `$categories`, `$menus` (+`category`, `recipe_count`) |
-| admin.recipe | `$menu`, `$ingredients`, `$recipe` (`ingredient_id`,`qty_needed`,`unit`) |
-| admin.ingredients | `$ingredients` |
-| admin.stock | `$ingredients`, `$lowStock`, `$movements` |
-| kasir.pos | `$categories`, `$menus` (+`available` = stok cukup) |
-| kasir.receipt | `$trx` |
-| owner.dashboard | `$stats`, `$chart[labels,data]`, `$top`, `$critical` |
+## Alur data
+- Kasir menyimpan pesanan `pending` -> bayar (`completed`; cash/qris/debit, diskon none/percent/amount) -> dapur `waiting` -> `preparing` -> `ready` -> pelayan `served`.
+- `subtotal`, `discount_amount`, dan `total` diisi trigger. Diskon diisi saat pembayaran dan terkunci setelah lunas.
+- Stok bahan berubah hanya lewat `stock_movements` (trigger); jangan UPDATE `ingredients.stock_qty` dari PHP.
+- Saat dapur menandai `ready`, trigger mencatat pemakaian bahan sesuai resep. Pesanan `ready` (dibayar) atau `served` tidak bisa dibatalkan.
+- Role `waitress` hanya mengantar pesanan siap (`ready` -> `served`); membuat pesanan tetap hanya oleh `kasir`.
+- Uang diterima/kembalian tidak ada di skema; hanya tampil di struk pertama.
 
-## ⚠️ Catatan skema database (diskusikan dengan PM / Dev A & B)
-- `transactions` belum punya kolom **diskon** — UI kasir sudah ada fitur diskon (sesuai daftar fitur).
-- `stock_movements` belum punya **harga/total biaya** — laporan laba-rugi butuh nilai pembelian bahan. Form stok masuk sudah menyediakan field `total_cost`.
-- `menus.status` dipakai dengan nilai `active` / `inactive`; sesuaikan bila beda.
+## Desain
+Mengikuti `Landing_Page.jpg`: halaman putih, judul cokelat tebal (Archivo Black) + kata miring (Cormorant Garamond),
+filter & tombol tan, pita blush untuk penutup/peringatan. **Tanpa kartu**: bagian dipisah jarak, garis tipis, dan judul.
+Token warna ada di `@theme` pada `resources/css/app.css`.
+
+## Tes
+`php artisan test` (butuh database hasil impor SQL; tiap test di-rollback).

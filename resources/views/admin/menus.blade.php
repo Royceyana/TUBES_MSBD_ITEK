@@ -1,86 +1,77 @@
 @extends('layouts.app')
-@section('title', 'Menu & Produk — Kafe Kaleng')
-@section('page-heading', 'Menu & Resep')
-@section('actions')
-    <button class="btn btn-primary btn-sm" data-modal-open="menu-form" data-title="Tambah menu" data-fill-name="" data-fill-price=""><x-icon name="plus" size="size-4" /> Tambah menu</button>
-@endsection
+@section('title', 'Menu & Resep | Kafe Kaleng')
 
 @section('content')
-<div class="space-y-5">
-    <div class="flex flex-wrap items-center gap-3">
-        <div class="relative min-w-52 flex-1 md:max-w-xs">
-            <x-icon name="search" size="size-[1.1rem]" class="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-bark" />
-            <input type="search" class="input !pl-11" placeholder="Cari menu…" data-search="#menu-grid > article" aria-label="Cari menu">
+<x-page-head title="Menu" script="& resep">
+    <button type="button" class="btn btn-primary" data-modal-open="menu-form" data-title="Tambah menu" data-action="{{ route('admin.menus.store') }}" data-method="POST"
+        data-fill-name="" data-fill-price="" data-fill-category_id="{{ $categories->first()->id ?? '' }}" data-fill-status="active">Tambah menu</button>
+</x-page-head>
+
+@if ($menus->isEmpty())
+    <p class="muted mt-12 text-lg">Belum ada menu. Tambahkan menu pertama, lalu atur resepnya.</p>
+@else
+    <div class="mt-10 flex flex-wrap items-end gap-4">
+        <div class="min-w-52 flex-1 md:max-w-xs">
+            <label for="q" class="label">Cari menu</label>
+            <input id="q" type="search" class="input" data-search="#menu-rows tr" data-empty="#menu-none" placeholder="mis. nasi goreng">
         </div>
-        <div class="no-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1" role="group" aria-label="Filter kategori" id="cat-filter">
-            <button class="chip" aria-pressed="true" data-cat="all">Semua</button>
-            @foreach ($categories as $c)<button class="chip" aria-pressed="false" data-cat="{{ $c->id }}">{{ $c->name }}</button>@endforeach
-        </div>
+    </div>
+    <div class="mt-5 flex flex-wrap gap-2" role="group" aria-label="Filter kategori" data-filter="#menu-rows tr" data-empty="#menu-none">
+        <button type="button" class="chip" aria-pressed="true" data-cat="all">Semua</button>
+        @foreach ($categories as $c)<button type="button" class="chip" aria-pressed="false" data-cat="{{ $c->id }}">{{ $c->name }}</button>@endforeach
     </div>
 
-    <div id="menu-grid" class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-        @foreach ($menus as $i => $m)
-            <article class="card group overflow-hidden rise" style="--i:{{ min($i, 12) }}" data-cat="{{ $m->category_id }}">
-                <div class="relative grid aspect-[16/10] place-items-center overflow-hidden bg-parchment">
-                    @if ($m->image)
-                        <img src="{{ asset('storage/'.$m->image) }}" alt="{{ $m->name }}" class="size-full object-cover transition duration-500 group-hover:scale-105" loading="lazy">
-                    @else
-                        <div class="sunburst absolute inset-0 opacity-70"></div>
-                        <x-icon name="coffee" size="size-14" class="relative text-bean/60" />
-                    @endif
-                    <span class="badge {{ $m->status === 'active' ? 'badge-ok' : 'badge-mute' }} absolute left-3 top-3">{{ $m->status === 'active' ? 'Aktif' : 'Nonaktif' }}</span>
-                </div>
-                <div class="p-4">
-                    <p class="eyebrow">{{ $m->category }}</p>
-                    <h2 class="mt-1 truncate text-lg font-bold">{{ $m->name }}</h2>
-                    <p class="num mt-1 text-xl font-bold text-amber-deep">Rp {{ number_format($m->price, 0, ',', '.') }}</p>
-                    <p class="mt-1 text-xs {{ $m->recipe_count ? 'text-bark' : 'font-semibold text-wine' }}">{{ $m->recipe_count ? $m->recipe_count.' bahan dalam resep' : 'Belum ada resep — stok tak akan berkurang' }}</p>
-                    <div class="mt-4 flex gap-2">
-                        <a href="{{ url('/admin/menus/'.$m->id.'/recipe') }}" class="btn btn-dark btn-sm flex-1"><x-icon name="flask" size="size-4" /> Resep</a>
-                        <button class="btn btn-ghost btn-icon btn-sm" aria-label="Ubah {{ $m->name }}" data-modal-open="menu-form" data-title="Ubah menu" data-fill-name="{{ $m->name }}" data-fill-price="{{ (int) $m->price }}" data-fill-category_id="{{ $m->category_id }}" data-fill-status="{{ $m->status }}"><x-icon name="pencil" size="size-4" /></button>
-                        <form method="POST" action="#" data-demo="Menu dihapus (demo)" data-confirm="Menu “{{ $m->name }}” akan dihapus beserta resepnya.">@csrf @method('DELETE')
-                            <button class="btn btn-danger btn-icon btn-sm" aria-label="Hapus {{ $m->name }}"><x-icon name="trash" size="size-4" /></button></form>
-                    </div>
-                </div>
-            </article>
-        @endforeach
+    <div class="mt-8 overflow-x-auto">
+        <table class="tbl min-w-[52rem]">
+            <thead><tr><th>Menu</th><th>Kategori</th><th class="r">Harga</th><th class="r">HPP</th><th>Resep</th><th>Status</th><th class="r">Aksi</th></tr></thead>
+            <tbody id="menu-rows">
+                @foreach ($menus as $m)
+                    <tr data-cat="{{ $m->category_id }}">
+                        <td>
+                            <div class="flex items-center gap-3">
+                                @if ($m->image)<img src="{{ asset('storage/'.$m->image) }}" alt="" width="44" height="44" loading="lazy" class="size-11 rounded object-cover">@endif
+                                <span class="font-semibold">{{ $m->name }}</span>
+                            </div>
+                        </td>
+                        <td class="text-muted">{{ $m->category ?? 'Tanpa kategori' }}</td>
+                        <td class="num r font-bold">{{ number_format($m->price, 0, ',', '.') }}</td>
+                        <td class="num r text-muted">{{ $m->recipe_count ? number_format($m->hpp, 0, ',', '.') : '-' }}</td>
+                        <td>@if ($m->recipe_count)<span class="text-muted">{{ $m->recipe_count }} bahan</span>@else<span class="status status-bad">Belum ada resep</span>@endif</td>
+                        <td><span class="status {{ $m->status === 'active' ? 'status-ok' : 'status-mute' }}">{{ $m->status === 'active' ? 'Aktif' : 'Nonaktif' }}</span></td>
+                        <td class="r">
+                            <div class="inline-flex gap-2">
+                                <a href="{{ route('admin.menus.recipe', $m->id) }}" class="btn btn-dark btn-sm" aria-label="Resep {{ $m->name }}">Resep</a>
+                                <button type="button" class="btn btn-line btn-sm" aria-label="Ubah {{ $m->name }}" data-modal-open="menu-form" data-title="Ubah menu" data-action="{{ route('admin.menus.update', $m->id) }}" data-method="PUT"
+                                    data-fill-name="{{ $m->name }}" data-fill-price="{{ (int) $m->price }}" data-fill-category_id="{{ $m->category_id }}" data-fill-status="{{ $m->status }}">Ubah</button>
+                                <form method="POST" action="{{ route('admin.menus.destroy', $m->id) }}" data-confirm="Menu “{{ $m->name }}” akan dihapus beserta resepnya. Menu yang pernah terjual tidak bisa dihapus, nonaktifkan saja." data-confirm-yes="Ya, hapus">@csrf @method('DELETE')
+                                    <button class="btn btn-danger btn-sm" aria-label="Hapus {{ $m->name }}">Hapus</button></form>
+                            </div>
+                        </td>
+                    </tr>
+                @endforeach
+            </tbody>
+        </table>
     </div>
-</div>
+    <p id="menu-none" class="muted mt-6 text-lg" hidden>Tidak ada menu yang cocok.</p>
+@endif
 
 @push('modals')
 <x-modal id="menu-form" title="Tambah menu" :large="true">
-    <form method="POST" action="#" enctype="multipart/form-data" data-demo class="space-y-5">@csrf
-        <div class="grid gap-5 sm:grid-cols-[11rem_1fr]">
-            {{-- Upload gambar dengan pratinjau --}}
-            <div>
-                <span class="label">Foto menu</span>
-                <label class="group relative grid aspect-square cursor-pointer place-items-center overflow-hidden rounded-2xl border-2 border-dashed border-bark/35 bg-parchment text-center text-bark transition hover:border-amber-deep">
-                    <img id="menu-preview" alt="" class="absolute inset-0 hidden size-full object-cover">
-                    <span id="menu-preview-hint" class="px-3 text-xs"><x-icon name="image" size="size-8" class="mx-auto mb-2" />Klik untuk unggah<br>JPG/PNG, maks 2 MB</span>
-                    <input type="file" name="image" accept="image/*" class="sr-only" onchange="const f=this.files[0]; if(f){const p=document.getElementById('menu-preview'); p.src=URL.createObjectURL(f); p.classList.remove('hidden'); document.getElementById('menu-preview-hint').classList.add('hidden');}">
-                </label>
-            </div>
-            <div class="space-y-4">
-                <div><label class="label" for="m-name">Nama menu</label><input id="m-name" name="name" class="input" required maxlength="100" placeholder="mis. Kopi Susu Kaleng"></div>
-                <div class="grid gap-4 sm:grid-cols-2">
-                    <div><label class="label" for="m-cat">Kategori</label>
-                        <select id="m-cat" name="category_id" class="select" required>@foreach ($categories as $c)<option value="{{ $c->id }}">{{ $c->name }}</option>@endforeach</select></div>
-                    <div><label class="label" for="m-price">Harga (Rp)</label><input id="m-price" name="price" type="number" min="0" step="500" class="input num" required placeholder="15000"></div>
-                </div>
-                <div><label class="label" for="m-status">Status</label>
-                    <select id="m-status" name="status" class="select"><option value="active">Aktif — tampil di kasir</option><option value="inactive">Nonaktif — disembunyikan</option></select></div>
-            </div>
+    <form method="POST" action="{{ route('admin.menus.store') }}" enctype="multipart/form-data" class="space-y-5">@csrf
+        <input type="hidden" name="_method" value="POST">
+        <div><label class="label" for="m-name">Nama menu</label><input id="m-name" name="name" class="input" required maxlength="100" placeholder="mis. Nasi Goreng Kampung"></div>
+        <div class="grid gap-4 sm:grid-cols-2">
+            <div><label class="label" for="m-cat">Kategori</label>
+                <select id="m-cat" name="category_id" class="select"><option value="">Tanpa kategori</option>@foreach ($categories as $c)<option value="{{ $c->id }}">{{ $c->name }}</option>@endforeach</select></div>
+            <div><label class="label" for="m-price">Harga (Rp)</label><input id="m-price" name="price" type="number" min="1" step="500" class="input num" required placeholder="15000"></div>
         </div>
-        <div class="flex justify-end gap-2"><button type="button" class="btn btn-ghost" data-modal-close>Batal</button><button class="btn btn-primary">Simpan menu</button></div>
+        <div class="grid gap-4 sm:grid-cols-2">
+            <div><label class="label" for="m-status">Status</label>
+                <select id="m-status" name="status" class="select"><option value="active">Aktif, tampil di kasir</option><option value="inactive">Nonaktif, disembunyikan</option></select></div>
+            <div><label class="label" for="m-img">Foto (opsional)</label><input id="m-img" type="file" name="image" accept="image/*" class="input !py-2 text-sm"><p class="help">JPG/PNG, maksimal 2 MB.</p></div>
+        </div>
+        <div class="flex justify-end gap-2"><button type="button" class="btn btn-line" data-modal-close>Batal</button><button class="btn btn-primary">Simpan menu</button></div>
     </form>
 </x-modal>
-<script>
-    // Filter kategori sisi-klien
-    document.getElementById('cat-filter').addEventListener('click', (e) => {
-        const b = e.target.closest('.chip'); if (!b) return;
-        document.querySelectorAll('#cat-filter .chip').forEach(c => c.setAttribute('aria-pressed', c === b));
-        document.querySelectorAll('#menu-grid > article').forEach(a => a.hidden = b.dataset.cat !== 'all' && a.dataset.cat !== b.dataset.cat);
-    });
-</script>
 @endpush
 @endsection

@@ -1,41 +1,42 @@
 @extends('layouts.app')
-@section('title', 'Riwayat Transaksi — Kafe Kaleng')
-@section('page-heading', 'Riwayat Transaksi')
+@section('title', 'Riwayat Transaksi | Kafe Kaleng')
 
 @section('content')
-<div class="card rise overflow-hidden">
-    <div class="flex flex-wrap items-center gap-3 p-4 md:p-5">
-        <div class="relative min-w-52 flex-1 md:max-w-sm">
-            <x-icon name="search" size="size-[1.1rem]" class="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-bark" />
-            <input type="search" data-search="#trx-rows tr" class="input !pl-11" placeholder="Cari nomor / menu…" aria-label="Cari transaksi">
-        </div>
-        <form method="GET" action="{{ route('kasir.history') }}">
-            <input type="date" name="date" class="input !w-auto" value="{{ $date }}" onchange="this.form.submit()" aria-label="Tanggal">
-        </form>
+<x-page-head title="Riwayat" script="transaksi" />
+
+<div class="mt-10 flex flex-wrap items-end gap-4">
+    <div class="min-w-52 flex-1 md:max-w-sm">
+        <label for="q" class="label">Cari</label>
+        <input id="q" type="search" data-search="#trx-rows tr" data-empty="#trx-none" class="input" placeholder="Nomor atau menu">
     </div>
-    <div class="overflow-x-auto px-2 pb-3 md:px-4">
-        <table class="tbl min-w-[40rem]">
-            <thead><tr><th>No</th><th>Waktu</th><th>Item</th><th>Metode</th><th class="r">Total</th><th>Status</th><th class="r"></th></tr></thead>
-            <tbody id="trx-rows">
-                @foreach ($transactions as $t)
-                    <tr>
-                        <td class="num font-semibold">{{ $t->number }}</td>
-                        <td class="whitespace-nowrap text-bark-dark">{{ $t->time }}</td>
-                        <td class="max-w-64 truncate text-bark-dark">{{ $t->items }}</td>
-                        <td>{{ $t->method }}</td>
-                        <td class="num r font-bold">Rp {{ number_format($t->total, 0, ',', '.') }}</td>
-                        <td><span class="badge {{ ['paid' => 'badge-ok', 'pending' => 'badge-warn', 'void' => 'badge-bad'][$t->status] ?? 'badge-mute' }}">{{ ['paid' => 'Lunas', 'pending' => 'Belum bayar', 'void' => 'Batal'][$t->status] ?? $t->status }}</span></td>
-                        <td class="r">
-                            @if ($t->status === 'paid')
-                                <a href="{{ route('kasir.orders.receipt', $t->id) }}" class="btn btn-ghost btn-sm"><x-icon name="printer" size="size-4" /> Struk</a>
-                            @elseif ($t->status === 'pending')
-                                <a href="{{ route('kasir.orders.pay', $t->id) }}" class="btn btn-primary btn-sm">Bayar</a>
-                            @endif
-                        </td>
-                    </tr>
-                @endforeach
-            </tbody>
-        </table>
-    </div>
+    <form method="GET" action="{{ route('kasir.history') }}">
+        <label for="date" class="label">Tanggal</label>
+        <input id="date" type="date" name="date" class="input !w-auto" value="{{ $date }}" onchange="this.form.submit()">
+    </form>
 </div>
+
+<div class="mt-8 overflow-x-auto">
+    <table class="tbl min-w-[48rem]">
+        <thead><tr><th>No</th><th>Waktu</th><th>Meja</th><th>Item</th><th>Bayar</th><th class="r">Total</th><th>Status</th><th>Dapur</th><th></th></tr></thead>
+        <tbody id="trx-rows">
+            @foreach ($transactions as $t)
+                <tr>
+                    <td class="num font-bold">{{ $t->number }}</td>
+                    <td>{{ $t->time }}</td>
+                    <td>{{ $t->table ?: '-' }}</td>
+                    <td class="max-w-64 truncate text-muted">{{ $t->items }}</td>
+                    <td>{{ $t->method }}</td>
+                    <td class="num r font-bold">Rp {{ number_format($t->total, 0, ',', '.') }}</td>
+                    <td><span class="status {{ ['completed' => 'status-ok', 'pending' => 'status-warn', 'cancelled' => 'status-bad'][$t->status] ?? 'status-mute' }}">{{ \App\Models\Transaction::STATUS_LABEL[$t->status] ?? $t->status }}</span></td>
+                    <td class="text-muted">{{ $t->status === 'completed' ? (\App\Models\Transaction::ORDER_LABEL[$t->order_status] ?? '-') : '-' }}</td>
+                    <td class="r">
+                        @if ($t->status === 'completed')<a href="{{ route('kasir.orders.receipt', $t->id) }}" class="link text-sm">Struk</a>
+                        @elseif ($t->status === 'pending')<a href="{{ route('kasir.orders.pay', $t->id) }}" class="btn btn-primary btn-sm">Bayar</a>@endif
+                    </td>
+                </tr>
+            @endforeach
+        </tbody>
+    </table>
+</div>
+<p id="trx-none" class="muted mt-8 text-lg" @if ($transactions->count()) hidden @endif>{{ $transactions->count() ? 'Tidak ada yang cocok.' : 'Belum ada transaksi pada tanggal ini.' }}</p>
 @endsection

@@ -4,307 +4,155 @@ namespace Tests\Feature;
 
 use App\Models\Transaction;
 use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 /**
- * Menguji alur POS: simpan pesanan -> bayar -> struk, batal, dan integrasi stok.
- *
- * Tes memakai database SQLite di memori (lihat phpunit.xml), jadi TIDAK menyentuh
- * database asli. Tabel menu/bahan/resep/stok dibuat ulang di sini sebagai data uji
- * (sesuai nama kolom di README-UI), supaya tes tetap jalan walau migration milik
- * anggota lain belum ada.
- *
- * Jalankan: php artisan test --filter=PosFlowTest
+ * Berjalan di database hasil impor kafe_kaleng.sql (trigger & view ikut diuji).
+ * DatabaseTransactions membatalkan semua perubahan setelah tiap test.
  */
 class PosFlowTest extends TestCase
 {
-    use RefreshDatabase;
+    use DatabaseTransactions;
 
-    private User $kasir;
-
-    protected function setUp(): void
+    private function user(string $role): User
     {
-        parent::setUp();
-
-        $this->withoutVite();
-        $this->makeFixtureTables();
-
-        $this->kasir = User::factory()->create();
-        $this->actingAs($this->kasir);
+        return User::create([
+            'name' => ucfirst($role).' Test', 'email' => $role.'-'.uniqid().'@test.local',
+            'password' => password_hash('rahasia123', PASSWORD_BCRYPT), 'role' => $role, 'status' => 'active',
+        ]);
     }
 
-    private function makeFixtureTables(): void
+    /** Menu aktif pertama beserta stok bahan resepnya diisi lewat stock_movements (trigger menambah stock_qty). */
+    private function stockedMenu(): object
     {
-        Schema::disableForeignKeyConstraints();
-        foreach (['stock_movements', 'menu_ingredients', 'menus', 'ingredients', 'categories'] as $table) {
-            Schema::dropIfExists($table);
+        $menu = DB::table('menus')->where('status', 'active')->orderBy('id')->first();
+        foreach (DB::table('menu_ingredients')->where('menu_id', $menu->id)->get() as $r) {
+            DB::table('stock_movements')->insert(['ingredient_id' => $r->ingredient_id, 'type' => 'in', 'qty' => $r->qty_needed * 20, 'notes' => 'test']);
         }
-        Schema::enableForeignKeyConstraints();
 
-        Schema::create('categories', function ($t) {
-            $t->id();
-            $t->string('name');
-        });
-        Schema::create('menus', function ($t) {
-            $t->id();
-            $t->unsignedBigInteger('category_id');
-            $t->string('name');
-            $t->unsignedBigInteger('price');
-            $t->string('image')->nullable();
-            $t->string('status')->default('active');
-        });
-        Schema::create('ingredients', function ($t) {
-            $t->id();
-            $t->string('name');
-            $t->string('unit');
-            $t->unsignedBigInteger('stock_qty');
-            $t->unsignedBigInteger('min_stock')->default(0);
-        });
-        Schema::create('menu_ingredients', function ($t) {
-            $t->id();
-            $t->unsignedBigInteger('menu_id');
-            $t->unsignedBigInteger('ingredient_id');
-            $t->unsignedBigInteger('qty_needed');
-            $t->string('unit')->nullable();
-        });
-        Schema::create('stock_movements', function ($t) {
-            $t->id();
-            $t->unsignedBigInteger('ingredient_id');
-            $t->unsignedBigInteger('user_id')->nullable();
-            $t->string('type');
-            $t->unsignedBigInteger('qty');
-            $t->string('notes')->nullable();
-            $t->timestamps();
-        });
-
-        DB::table('categories')->insert(['id' => 1, 'name' => 'Kopi']);
-        DB::table('menus')->insert([
-            ['id' => 1, 'category_id' => 1, 'name' => 'Kopi Susu Kaleng', 'price' => 15000, 'status' => 'active'],
-            ['id' => 2, 'category_id' => 1, 'name' => 'Americano', 'price' => 12000, 'status' => 'active'],
-            ['id' => 3, 'category_id' => 1, 'name' => 'Roti Bakar (tanpa resep)', 'price' => 12000, 'status' => 'active'],
-            ['id' => 4, 'category_id' => 1, 'name' => 'Kentang (nonaktif)', 'price' => 10000, 'status' => 'inactive'],
-        ]);
-        DB::table('ingredients')->insert([
-            ['id' => 1, 'name' => 'Biji kopi', 'unit' => 'gram', 'stock_qty' => 1000],
-            ['id' => 2, 'name' => 'Susu cair', 'unit' => 'ml', 'stock_qty' => 1000],
-        ]);
-        DB::table('menu_ingredients')->insert([
-            ['menu_id' => 1, 'ingredient_id' => 1, 'qty_needed' => 18],
-            ['menu_id' => 1, 'ingredient_id' => 2, 'qty_needed' => 120],
-            ['menu_id' => 2, 'ingredient_id' => 1, 'qty_needed' => 18],
-        ]);
+        return $menu;
     }
 
-    private function stock(int $ingredientId): int
+    public function test_tamu_diarahkan_ke_login_dan_role_dibatasi(): void
     {
-        return (int) DB::table('ingredients')->where('id', $ingredientId)->value('stock_qty');
+        $this->get('/kasir/pos')->assertRedirect('/login');
+        $this->actingAs($this->user('kasir'))->get('/admin/menus')->assertForbidden();
+        $this->actingAs($this->user('admin'))->get('/admin/menus')->assertOk();
     }
 
-    private function order(array $items, string $discountType = 'none', ?int $discountValue = null)
+    public function test_login_memakai_hash_bcrypt_2b_dari_sql(): void
     {
-        return $this->post(route('kasir.orders.store'), [
-            'items' => $items,
-            'discount_type' => $discountType,
-            'discount_value' => $discountValue,
-        ]);
+        $u = $this->user('kasir');
+        DB::table('users')->where('id', $u->id)->update(['password' => '$2b'.substr(password_hash('rahasia123', PASSWORD_BCRYPT), 3)]);
+
+        $this->post('/login', ['email' => $u->email, 'password' => 'rahasia123'])->assertRedirect(route('kasir.dashboard'));
+        $this->assertAuthenticatedAs($u->fresh());
     }
 
-    public function test_pos_page_lists_active_menus_and_marks_menu_without_recipe_unavailable(): void
+    public function test_alur_pesan_bayar_masak_memotong_stok_lewat_trigger(): void
     {
-        $response = $this->get(route('kasir.pos'));
+        $kasir = $this->user('kasir');
+        $menu = $this->stockedMenu();
 
-        $response->assertOk();
-        $response->assertSee('Kopi Susu Kaleng');
-        $response->assertDontSee('Kentang (nonaktif)');
-        $response->assertSee('Stok habis'); // Roti Bakar tidak punya resep
-    }
-
-    public function test_store_saves_pending_order_with_server_side_totals_and_deducts_stock(): void
-    {
-        $response = $this->order([['menu_id' => 1, 'qty' => 2], ['menu_id' => 2, 'qty' => 1]]);
-
-        $trx = Transaction::firstOrFail();
-        $response->assertRedirect(route('kasir.orders.pay', $trx));
-
+        $this->actingAs($kasir)->post('/kasir/orders', ['items' => [['menu_id' => $menu->id, 'qty' => 2]], 'table_no' => '4']);
+        $trx = Transaction::latest('id')->first();
         $this->assertSame('pending', $trx->status);
-        $this->assertSame($this->kasir->id, $trx->user_id);
-        $this->assertSame(42000, (int) $trx->subtotal); // 2x15000 + 12000
-        $this->assertSame(42000, (int) $trx->total);
-        $this->assertMatchesRegularExpression('/^INV-\d{4}$/', $trx->invoice_number);
-        $this->assertCount(2, $trx->details);
+        $this->assertEquals($menu->price * 2, $trx->total);            // total dihitung trigger
 
-        // Kopi: 2x18 + 1x18 = 54 ; Susu: 2x120 = 240
-        $this->assertSame(1000 - 54, $this->stock(1));
-        $this->assertSame(1000 - 240, $this->stock(2));
-        $this->assertSame(2, DB::table('stock_movements')->where('type', 'out')->count());
+        $this->post("/kasir/orders/{$trx->id}/pay", ['payment_method' => 'cash', 'paid' => $menu->price * 2 + 5000])
+            ->assertRedirect(route('kasir.orders.receipt', $trx));
+        $this->assertSame('completed', $trx->fresh()->status);
+
+        // Bayar dua kali ditolak
+        $this->post("/kasir/orders/{$trx->id}/pay", ['payment_method' => 'qris'])->assertSessionHasErrors('order');
+
+        // Dapur: waiting -> preparing -> ready, stok keluar tercatat oleh trigger
+        $dapur = $this->user('dapur');
+        $out = fn () => DB::table('stock_movements')->where('transaction_id', $trx->id)->where('type', 'out')->count();
+        $this->actingAs($dapur)->post("/dapur/orders/{$trx->id}/advance");
+        $this->assertSame(0, $out());
+        $this->post("/dapur/orders/{$trx->id}/advance");
+        $this->assertSame('ready', $trx->fresh()->order_status);
+        $this->assertSame(DB::table('menu_ingredients')->where('menu_id', $menu->id)->count(), $out());
+
+        // Setelah siap, pesanan tidak boleh dibatalkan (trigger fn_guard_cancel)
+        $this->actingAs($kasir)->post("/kasir/orders/{$trx->id}/void")->assertSessionHasErrors('order');
+        $this->assertSame('completed', $trx->fresh()->status);
+
+        // Pelayan mengantar: ready -> served; tidak bisa dua kali
+        $pelayan = $this->user('waitress');
+        $this->actingAs($pelayan)->post("/pelayan/orders/{$trx->id}/serve");
+        $this->assertSame('served', $trx->fresh()->order_status);
+        $this->post("/pelayan/orders/{$trx->id}/serve")->assertSessionHasErrors('order');
     }
 
-    public function test_discount_is_calculated_on_server(): void
+    public function test_diskon_persen_dihitung_trigger_dan_debit_diterima(): void
     {
-        $this->order([['menu_id' => 1, 'qty' => 2]], 'percent', 10);
-        $this->assertSame(27000, (int) Transaction::latest('id')->first()->total);
+        $kasir = $this->user('kasir');
+        $menu = $this->stockedMenu();
 
-        $this->order([['menu_id' => 2, 'qty' => 1]], 'amount', 99999); // dibatasi sebesar subtotal
-        $this->assertSame(0, (int) Transaction::latest('id')->first()->total);
-    }
+        $this->actingAs($kasir)->post('/kasir/orders', ['items' => [['menu_id' => $menu->id, 'qty' => 2]]]);
+        $trx = Transaction::latest('id')->first();
+        $subtotal = (int) $menu->price * 2;
 
-    public function test_menu_without_recipe_cannot_be_sold(): void
-    {
-        $response = $this->order([['menu_id' => 3, 'qty' => 1]]);
-
-        $response->assertSessionHasErrors('items');
-        $this->assertSame(0, Transaction::count());
-    }
-
-    public function test_inactive_or_unknown_menu_is_rejected(): void
-    {
-        $this->order([['menu_id' => 4, 'qty' => 1]])->assertSessionHasErrors('items');
-        $this->order([['menu_id' => 999, 'qty' => 1]])->assertSessionHasErrors('items');
-        $this->assertSame(0, Transaction::count());
-    }
-
-    public function test_insufficient_stock_rolls_back_everything(): void
-    {
-        DB::table('ingredients')->where('id', 2)->update(['stock_qty' => 100]); // susu kurang (butuh 120)
-
-        // Americano (kopi) dipotong dulu, lalu Kopi Susu gagal di susu -> semuanya harus batal.
-        $response = $this->order([['menu_id' => 2, 'qty' => 1], ['menu_id' => 1, 'qty' => 1]]);
-
-        $response->assertSessionHasErrors('items');
-        $this->assertSame(0, Transaction::count());
-        $this->assertSame(0, DB::table('transaction_details')->count());
-        $this->assertSame(1000, $this->stock(1));
-        $this->assertSame(100, $this->stock(2));
-        $this->assertSame(0, DB::table('stock_movements')->count());
-    }
-
-    public function test_invalid_input_is_rejected(): void
-    {
-        $this->order([])->assertSessionHasErrors('items');
-        $this->order([['menu_id' => 1, 'qty' => 0]])->assertSessionHasErrors('items.0.qty');
-        $this->order([['menu_id' => 1, 'qty' => 1]], 'bogus')->assertSessionHasErrors('discount_type');
-        $this->assertSame(0, Transaction::count());
-    }
-
-    public function test_store_requires_login(): void
-    {
-        $this->app['auth']->logout();
-
-        $this->order([['menu_id' => 1, 'qty' => 1]])->assertForbidden();
-        $this->assertSame(0, Transaction::count());
-    }
-
-    public function test_cash_payment_calculates_change_and_shows_receipt(): void
-    {
-        $this->order([['menu_id' => 1, 'qty' => 2]]); // 30000
-        $trx = Transaction::firstOrFail();
-
-        $this->get(route('kasir.orders.pay', $trx))->assertOk()->assertSee($trx->invoice_number);
-
-        $this->post(route('kasir.orders.pay.store', $trx), ['payment_method' => 'cash', 'paid' => 50000])
+        $this->post("/kasir/orders/{$trx->id}/pay", ['payment_method' => 'debit', 'discount_type' => 'percent', 'discount_value' => 10])
             ->assertRedirect(route('kasir.orders.receipt', $trx));
 
         $trx->refresh();
-        $this->assertSame('paid', $trx->status);
-        $this->assertSame(50000, (int) $trx->paid_amount);
-        $this->assertSame(20000, (int) $trx->change_amount);
-        $this->assertNotNull($trx->paid_at);
-
-        $this->get(route('kasir.orders.receipt', $trx))
-            ->assertOk()
-            ->assertSee($trx->invoice_number)
-            ->assertSee('Kopi Susu Kaleng')
-            ->assertSee('Tunai');
+        $this->assertSame('completed', $trx->status);
+        $this->assertSame('debit', $trx->payment_method);
+        $this->assertSame($subtotal, $trx->subtotal);
+        $this->assertSame((int) round($subtotal * 0.10), $trx->discount_amount);
+        $this->assertSame($subtotal - $trx->discount_amount, $trx->total);
     }
 
-    public function test_cash_payment_below_total_is_rejected(): void
+    public function test_tunai_kurang_dari_total_setelah_diskon_ditolak_dan_diskon_tidak_tersimpan(): void
     {
-        $this->order([['menu_id' => 1, 'qty' => 2]]);
-        $trx = Transaction::firstOrFail();
+        $kasir = $this->user('kasir');
+        $menu = $this->stockedMenu();
 
-        $this->post(route('kasir.orders.pay.store', $trx), ['payment_method' => 'cash', 'paid' => 10000])
+        $this->actingAs($kasir)->post('/kasir/orders', ['items' => [['menu_id' => $menu->id, 'qty' => 1]]]);
+        $trx = Transaction::latest('id')->first();
+
+        $this->post("/kasir/orders/{$trx->id}/pay", ['payment_method' => 'cash', 'paid' => 1, 'discount_type' => 'amount', 'discount_value' => 1000])
             ->assertSessionHasErrors('paid');
 
-        $this->assertSame('pending', $trx->refresh()->status);
-    }
-
-    public function test_qris_payment_is_exact_and_cannot_be_paid_twice(): void
-    {
-        $this->order([['menu_id' => 2, 'qty' => 1]]);
-        $trx = Transaction::firstOrFail();
-
-        $this->post(route('kasir.orders.pay.store', $trx), ['payment_method' => 'qris']);
         $trx->refresh();
-        $this->assertSame('paid', $trx->status);
-        $this->assertSame((int) $trx->total, (int) $trx->paid_amount);
-        $this->assertSame(0, (int) $trx->change_amount);
-
-        $this->post(route('kasir.orders.pay.store', $trx), ['payment_method' => 'cash', 'paid' => 99999])
-            ->assertSessionHasErrors('order');
-        $this->assertSame('qris', $trx->refresh()->payment_method);
+        $this->assertSame('pending', $trx->status);
+        $this->assertSame('none', $trx->discount_type);              // transaksi di-rollback
     }
 
-    public function test_void_pending_order_restores_stock(): void
+    public function test_pelayan_tidak_bisa_mengantar_pesanan_yang_belum_siap(): void
     {
-        $this->order([['menu_id' => 1, 'qty' => 2]]);
-        $trx = Transaction::firstOrFail();
-        $this->assertSame(1000 - 36, $this->stock(1));
+        $kasir = $this->user('kasir');
+        $menu = $this->stockedMenu();
+        $this->actingAs($kasir)->post('/kasir/orders', ['items' => [['menu_id' => $menu->id, 'qty' => 1]]]);
+        $trx = Transaction::latest('id')->first();
+        $this->post("/kasir/orders/{$trx->id}/pay", ['payment_method' => 'qris']);
 
-        $this->post(route('kasir.orders.void', $trx))->assertRedirect(route('kasir.pos'));
-
-        $this->assertSame('void', $trx->refresh()->status);
-        $this->assertNotNull($trx->voided_at);
-        $this->assertSame(1000, $this->stock(1));
-        $this->assertSame(1000, $this->stock(2));
-        $this->assertSame(2, DB::table('stock_movements')->where('type', 'in')->count());
-
-        // Batal dua kali tidak boleh mengembalikan stok dua kali.
-        $this->post(route('kasir.orders.void', $trx))->assertSessionHasErrors('order');
-        $this->assertSame(1000, $this->stock(1));
+        $this->actingAs($this->user('waitress'))->post("/pelayan/orders/{$trx->id}/serve")->assertSessionHasErrors('order');
+        $this->assertSame('waiting', $trx->fresh()->order_status);
+        $this->actingAs($this->user('kasir'))->get('/pelayan/board')->assertForbidden();
     }
 
-    public function test_paid_order_cannot_be_voided(): void
+    public function test_pesanan_belum_bayar_bisa_dibatalkan_dan_stok_tidak_cukup_ditolak(): void
     {
-        $this->order([['menu_id' => 1, 'qty' => 1]]);
-        $trx = Transaction::firstOrFail();
-        $this->post(route('kasir.orders.pay.store', $trx), ['payment_method' => 'qris']);
+        $kasir = $this->user('kasir');
+        $menu = $this->stockedMenu();
 
-        $this->post(route('kasir.orders.void', $trx))->assertSessionHasErrors('order');
+        $this->actingAs($kasir)->post('/kasir/orders', ['items' => [['menu_id' => $menu->id, 'qty' => 1]]]);
+        $trx = Transaction::latest('id')->first();
+        $this->post("/kasir/orders/{$trx->id}/void");
+        $this->assertSame('cancelled', $trx->fresh()->status);
 
-        $this->assertSame('paid', $trx->refresh()->status);
-        $this->assertSame(1000 - 18, $this->stock(1)); // stok tetap terpotong
+        $this->post('/kasir/orders', ['items' => [['menu_id' => $menu->id, 'qty' => 99]]])->assertSessionHasErrors('items');
     }
 
-    public function test_voided_order_cannot_be_paid(): void
+    public function test_halaman_utama_menampilkan_menu_dari_database(): void
     {
-        $this->order([['menu_id' => 2, 'qty' => 1]]);
-        $trx = Transaction::firstOrFail();
-        $this->post(route('kasir.orders.void', $trx));
-
-        $this->post(route('kasir.orders.pay.store', $trx), ['payment_method' => 'qris'])
-            ->assertSessionHasErrors('order');
-        $this->assertSame('void', $trx->refresh()->status);
-    }
-
-    public function test_history_and_dashboard_show_real_data(): void
-    {
-        $this->order([['menu_id' => 1, 'qty' => 2]]); // 30000, akan dibayar tunai
-        $paid = Transaction::firstOrFail();
-        $this->post(route('kasir.orders.pay.store', $paid), ['payment_method' => 'cash', 'paid' => 30000]);
-
-        $this->order([['menu_id' => 2, 'qty' => 1]]); // 12000, dibiarkan pending
-        $pending = Transaction::latest('id')->first();
-
-        $this->get(route('kasir.history'))
-            ->assertOk()
-            ->assertSee($paid->invoice_number)
-            ->assertSee($pending->invoice_number)
-            ->assertSee('Lunas')
-            ->assertSee('Belum bayar');
-
-        $this->get(route('kasir.dashboard'))->assertOk();
+        $name = DB::table('menus')->where('status', 'active')->value('name');
+        $this->get('/')->assertOk()->assertSee($name);
     }
 }

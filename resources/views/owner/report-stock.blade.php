@@ -1,26 +1,27 @@
 @extends('layouts.app')
-@section('title', 'Laporan Stok — Kafe Kaleng')
-@section('page-heading', 'Laporan Stok')
-@section('actions')<a href="#" class="btn btn-primary btn-sm" onclick="toast('Mengunduh .xlsx (demo)');return false"><x-icon name="download" size="size-4" /> Export Excel</a>@endsection
+@section('title', 'Laporan Stok | Kafe Kaleng')
+@php $fmt = fn ($n) => rtrim(rtrim(number_format($n, 2, ',', '.'), '0'), ','); @endphp
 
 @section('content')
-<div class="card rise overflow-hidden">
-    <div class="overflow-x-auto p-2 md:p-4">
+<x-page-head title="Laporan stok" script="masuk & keluar">
+    <button type="button" onclick="window.print()" class="btn btn-line btn-sm">Cetak</button>
+</x-page-head>
+@include('owner._range', ['action' => route('owner.stock')])
+
+<div class="print-area mt-10 overflow-x-auto">
+    @if ($rows->isEmpty())
+        <p class="muted text-lg">Belum ada bahan baku.</p>
+    @else
         <table class="tbl min-w-[40rem]">
-            <thead><tr><th>Bahan</th><th class="r">Masuk</th><th class="r">Keluar</th><th class="r">Stok akhir</th><th>Status</th></tr></thead>
+            <thead><tr><th>Bahan</th><th class="r">Masuk</th><th class="r">Keluar</th><th class="r">Stok akhir</th><th class="r">Minimum</th><th>Status</th></tr></thead>
             <tbody>
                 @foreach ($rows as $r)
-                    @php $empty = $r->stock_qty <= 0; $low = !$empty && $r->stock_qty <= $r->min_stock; @endphp
-                    <tr>
-                        <td class="font-semibold">{{ $r->name }}</td>
-                        <td class="num r text-leaf">+{{ $r->in + 0 }} {{ $r->unit }}</td>
-                        <td class="num r text-amber-deep">−{{ $r->out + 0 }} {{ $r->unit }}</td>
-                        <td class="num r font-bold">{{ $r->stock_qty + 0 }} {{ $r->unit }}</td>
-                        <td><span class="badge {{ $empty ? 'badge-bad' : ($low ? 'badge-warn' : 'badge-ok') }}">{{ $empty ? 'Habis' : ($low ? 'Menipis' : 'Aman') }}</span></td>
-                    </tr>
+                    <tr><td class="font-semibold">{{ $r->name }}</td><td class="num r">{{ $fmt($r->in) }}</td><td class="num r">{{ $fmt($r->out) }}</td>
+                        <td class="num r font-bold">{{ $fmt($r->stock_qty) }} <span class="font-normal text-muted">{{ $r->unit }}</span></td><td class="num r text-muted">{{ $fmt($r->min_stock) }}</td>
+                        <td><span class="status {{ ['aman' => 'status-ok', 'menipis' => 'status-warn', 'habis' => 'status-bad'][$r->stock_status] }}">{{ ucfirst($r->stock_status) }}</span></td></tr>
                 @endforeach
             </tbody>
         </table>
-    </div>
+    @endif
 </div>
 @endsection
