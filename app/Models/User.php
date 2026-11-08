@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 
 /** Tabel `users` (kafe_kaleng.sql): role = admin | kasir | dapur | owner | waitress. */
@@ -11,6 +12,8 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 #[Hidden(['password'])]
 class User extends Authenticatable
 {
+    use HasFactory;
+
     public const HOME = [
         'admin' => 'admin.dashboard',
         'kasir' => 'kasir.dashboard',

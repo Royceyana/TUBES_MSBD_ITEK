@@ -34,7 +34,7 @@ class PosController extends Controller
             'count' => (clone $paidToday)->count(),
             'revenue' => (int) (clone $paidToday)->sum('total'),
             'cash' => (int) (clone $paidToday)->where('payment_method', 'cash')->sum('total'),
-            'cashless' => (int) (clone $paidToday)->where('payment_method', '!=', 'cash')->sum('total'),
+            'cashless' => (int) (clone $paidToday)->where('payment_method', 'qris')->sum('total'),
         ];
 
         $recent = (clone $paidToday)->with('details.menu')->latest('transaction_date')->latest('id')->take(5)->get()
@@ -163,7 +163,7 @@ class PosController extends Controller
     public function pay(Request $request, Transaction $transaction): RedirectResponse
     {
         $data = $request->validate([
-            'payment_method' => ['required', 'in:cash,qris,debit'],
+            'payment_method' => ['required', 'in:cash,qris'],
             'paid' => ['nullable', 'integer', 'min:0'],
             'discount_type' => ['nullable', 'in:none,percent,amount'],
             'discount_value' => ['nullable', 'numeric', 'min:0', 'max:99999999'],

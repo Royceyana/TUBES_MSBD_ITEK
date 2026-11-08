@@ -1,12 +1,12 @@
 @extends('layouts.app')
 @section('title', 'Kasir | Kafe Kaleng')
-@section('main-class', 'mx-auto max-w-[1500px]')
+@section('main-class', 'max-w-[1500px]')
 
 @section('content')
 <div class="lg:grid lg:grid-cols-[1fr_26rem]">
 
     {{-- ===== Daftar menu ===== --}}
-    <section class="min-w-0 px-5 py-8 pb-32 md:px-8 lg:min-h-[calc(100dvh-4.5rem)] lg:pb-10">
+    <section class="min-w-0 px-5 py-8 pb-32 md:px-8 lg:min-h-dvh lg:pb-10">
         <x-page-head title="Kasir" script="pilih pesanan" />
 
         <div class="mt-8">
@@ -48,7 +48,7 @@
 
     <aside id="cart" data-open="false" aria-label="Pesanan"
         class="fixed inset-x-0 bottom-0 z-40 flex max-h-[90dvh] translate-y-full flex-col rounded-t-2xl bg-sand transition-transform duration-500 ease-[cubic-bezier(.22,1,.36,1)]
-               data-[open=true]:translate-y-0 lg:sticky lg:top-[4.5rem] lg:z-auto lg:h-[calc(100dvh-4.5rem)] lg:max-h-none lg:translate-y-0 lg:rounded-none">
+               data-[open=true]:translate-y-0 lg:sticky lg:top-0 lg:z-auto lg:h-dvh lg:max-h-none lg:translate-y-0 lg:rounded-none">
         <div class="flex items-start justify-between gap-3 px-6 pb-3 pt-6">
             <div><h2 class="display text-3xl">Pesanan</h2><span class="script ml-3 text-2xl text-clay-dark">meja &amp; menu</span></div>
             <div class="flex gap-1.5">

@@ -10,7 +10,7 @@
     <x-stat label="Transaksi lunas" :value="$stats['count']" />
     <x-stat label="Omzet shift" :value="$stats['revenue']" :money="true" />
     <x-stat label="Tunai" :value="$stats['cash']" :money="true" hint="uang di laci kasir" />
-    <x-stat label="QRIS &amp; debit" :value="$stats['cashless']" :money="true" />
+    <x-stat label="QRIS" :value="$stats['cashless']" :money="true" />
 </dl>
 
 @if ($pending > 0)

@@ -88,7 +88,7 @@ class PosFlowTest extends TestCase
         $this->post("/pelayan/orders/{$trx->id}/serve")->assertSessionHasErrors('order');
     }
 
-    public function test_diskon_persen_dihitung_trigger_dan_debit_diterima(): void
+    public function test_diskon_persen_dihitung_trigger_dan_qris_diterima(): void
     {
         $kasir = $this->user('kasir');
         $menu = $this->stockedMenu();
@@ -97,15 +97,25 @@ class PosFlowTest extends TestCase
         $trx = Transaction::latest('id')->first();
         $subtotal = (int) $menu->price * 2;
 
-        $this->post("/kasir/orders/{$trx->id}/pay", ['payment_method' => 'debit', 'discount_type' => 'percent', 'discount_value' => 10])
+        $this->post("/kasir/orders/{$trx->id}/pay", ['payment_method' => 'qris', 'discount_type' => 'percent', 'discount_value' => 10])
             ->assertRedirect(route('kasir.orders.receipt', $trx));
 
         $trx->refresh();
         $this->assertSame('completed', $trx->status);
-        $this->assertSame('debit', $trx->payment_method);
+        $this->assertSame('qris', $trx->payment_method);
         $this->assertSame($subtotal, $trx->subtotal);
         $this->assertSame((int) round($subtotal * 0.10), $trx->discount_amount);
         $this->assertSame($subtotal - $trx->discount_amount, $trx->total);
+    }
+
+    public function test_metode_debit_tidak_lagi_diterima(): void
+    {
+        $menu = $this->stockedMenu();
+        $this->actingAs($this->user('kasir'))->post('/kasir/orders', ['items' => [['menu_id' => $menu->id, 'qty' => 1]]]);
+        $trx = Transaction::latest('id')->first();
+
+        $this->post("/kasir/orders/{$trx->id}/pay", ['payment_method' => 'debit'])->assertSessionHasErrors('payment_method');
+        $this->assertSame('pending', $trx->fresh()->status);
     }
 
     public function test_tunai_kurang_dari_total_setelah_diskon_ditolak_dan_diskon_tidak_tersimpan(): void

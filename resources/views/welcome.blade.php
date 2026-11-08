@@ -7,37 +7,51 @@
 @endphp
 
 @section('content')
-{{-- ===== HERO: foto tampak depan kafe; judul besar di dua sisi, kata miring di kanan bawah (acuan: Landing_Page.jpg) ===== --}}
-<section class="relative isolate bg-espresso text-white md:h-[100svh] md:min-h-[600px] md:overflow-hidden">
-    <div class="aspect-[4/3] md:absolute md:inset-0 md:-z-20 md:aspect-auto">
-        <img src="{{ asset('images/hero-kafe-kaleng.webp') }}" width="1920" height="1080" fetchpriority="high"
-             alt="Papan kayu bertuliskan Kafe Kaleng dengan huruf kuningan di dinding batu berhias tanaman rambat, diterangi lampu gantung"
-             class="size-full object-cover object-[50%_40%]">
-    </div>
-    <div class="absolute inset-0 -z-10 hidden md:block" aria-hidden="true"
-         style="background: linear-gradient(to bottom, rgb(20 8 3 / .62), rgb(20 8 3 / 0) 28%), linear-gradient(to top, rgb(20 8 3 / .82), rgb(20 8 3 / 0) 48%)"></div>
-
-    <header class="absolute inset-x-0 top-0 z-10">
-        <div class="mx-auto flex max-w-[1600px] items-center justify-between gap-6 px-5 py-4 md:px-10">
-            <a href="{{ url('/') }}" class="flex items-center gap-3" aria-label="Kafe Kaleng, beranda">
-                <x-logo size="h-12 w-auto md:h-14" />
-                <span class="display hidden text-xl sm:inline">Kafe Kaleng</span>
-            </a>
-            <nav class="flex items-center gap-5 text-sm font-semibold md:gap-8 md:text-base" aria-label="Halaman">
-                <a href="#menu" class="hover:underline hover:underline-offset-8">Menu</a>
-                <a href="#lokasi" class="hover:underline hover:underline-offset-8">Lokasi</a>
-                <a href="{{ route('login') }}" class="btn btn-light btn-sm">Masuk</a>
-            </nav>
-        </div>
+{{-- ===== HERO: mengikuti acuan "the bake": nav di atas, panel foto membulat, judul dua bobot di kiri atas,
+     foto kecil + keterangan di kiri bawah, tile kaca berisi satu menu di kanan bawah ===== --}}
+@php $featured = $menus->first(fn ($m) => str_contains(strtolower($m->name), 'ayam geprek')); @endphp
+<section class="bg-white p-3 md:p-5">
+    <header class="flex items-center justify-between gap-6 px-2 py-2 md:px-6 md:py-3">
+        <a href="{{ url('/') }}" class="flex items-center gap-3" aria-label="Kafe Kaleng, beranda">
+            <x-logo size="h-11 w-auto md:h-12" />
+            <span class="display hidden whitespace-nowrap text-xl min-[440px]:inline md:text-2xl">Kafe Kaleng</span>
+        </a>
+        <nav class="flex items-center gap-5 text-sm font-semibold md:gap-9 md:text-[.95rem]" aria-label="Halaman">
+            <a href="#menu" class="hover:underline hover:underline-offset-8">Menu</a>
+            <a href="#lokasi" class="hover:underline hover:underline-offset-8">Lokasi</a>
+            <a href="{{ route('login') }}" class="btn btn-dark btn-sm !rounded-full !px-5 md:!min-h-11 md:!px-7">Masuk</a>
+        </nav>
     </header>
 
-    <div class="px-5 pb-10 pt-8 md:absolute md:inset-x-0 md:bottom-0 md:px-10 md:pb-14 md:pt-0">
-        <div class="mx-auto max-w-[1600px]">
-            <h1 class="hero-title flex flex-col text-[22vw] sm:text-[19vw] md:flex-row md:justify-between md:text-[11vw]">
-                <span>Makan</span><span class="md:text-right">Ngopi</span>
-            </h1>
-            <p class="hero-script mt-2 text-right text-[2rem] md:-mt-1 md:text-[clamp(2rem,3.8vw,4rem)]">Selamat datang</p>
+    <div class="relative isolate mt-2 min-h-[37rem] overflow-hidden rounded-[1.5rem] bg-espresso text-white md:h-[calc(100svh-6.5rem)] md:min-h-[40rem] md:rounded-[2rem]">
+        <img src="{{ asset('images/hero-kafe-kaleng.webp') }}" width="1920" height="1080" fetchpriority="high"
+             alt="Papan kayu bertuliskan Kafe Kaleng dengan huruf kuningan di dinding batu berhias tanaman rambat, diterangi lampu gantung"
+             class="absolute inset-0 -z-20 size-full object-cover object-[49%_45%]">
+        <div class="absolute inset-0 -z-10" aria-hidden="true"
+             style="background: linear-gradient(100deg, rgb(20 8 3 / .72) 0%, rgb(20 8 3 / .25) 42%, rgb(20 8 3 / 0) 62%), linear-gradient(to top, rgb(20 8 3 / .55), rgb(20 8 3 / 0) 38%)"></div>
+
+        <h1 class="absolute left-5 top-6 max-w-[17rem] text-[1.9rem] leading-[1.08] tracking-[-.02em] sm:max-w-md sm:text-4xl md:left-12 md:top-12 md:max-w-xl md:text-[3.4rem]">
+            <span class="block font-normal">Makan enak dan<br>ngopi santai.</span>
+            <span class="block font-bold">Ramah di kantong.</span>
+        </h1>
+
+        {{-- foto kecil + keterangan --}}
+        <div class="absolute bottom-4 left-4 flex items-end md:bottom-8 md:left-8">
+            <img src="{{ asset('images/tampak-depan.webp') }}" width="1024" height="468" loading="lazy"
+                 alt="Pintu masuk Kafe Kaleng dari dinding batu alam"
+                 class="h-36 w-24 rounded-2xl border-[3px] border-white/90 object-cover object-[50%_60%] md:h-48 md:w-32">
+            <p class="-ml-3 hidden max-w-60 rounded-2xl bg-white px-4 py-3 text-sm leading-snug text-cocoa sm:block">Tampak depan Kafe Kaleng, Jl. Jamin Ginting, Medan.</p>
         </div>
+
+        {{-- tile kaca: satu menu dari database --}}
+        @if ($featured)
+            <a href="#menu" class="absolute bottom-4 right-4 w-36 rounded-2xl border border-white/30 bg-black/25 p-2.5 backdrop-blur-md transition-transform duration-300 hover:-translate-y-1 md:bottom-8 md:right-8 md:w-48 md:p-3" aria-label="{{ $featured->name }}, Rp {{ number_format($featured->price, 0, ',', '.') }}, lihat menu">
+                <p class="flex items-center justify-between gap-2 text-[.8rem] font-bold leading-tight md:text-base"><span>{{ $featured->name }}</span><span class="shrink-0" aria-hidden="true">&rarr;</span></p>
+                <img src="{{ asset('images/nasi-ayam-geprek.webp') }}" width="560" height="560" loading="lazy" alt="Sepiring nasi putih dengan ayam goreng sambal geprek, timun, tomat, dan selada"
+                     class="mt-2 aspect-square w-full rounded-xl object-cover">
+                <p class="num mt-2 text-sm font-bold md:text-base">Rp {{ number_format($featured->price, 0, ',', '.') }}</p>
+            </a>
+        @endif
     </div>
 </section>
 
@@ -88,7 +102,7 @@
     <div class="mx-auto grid max-w-6xl items-center gap-10 px-5 py-16 md:grid-cols-[1fr_1.15fr] md:gap-16 md:px-10 md:py-24">
         <div>
             <h2 class="display text-6xl md:text-7xl">Mampir</h2>
-            <p class="script -mt-1 ml-8 text-4xl text-clay-dark">ke Jl. Jamin Ginting</p>
+            <p class="script -mt-1 ml-8 text-4xl text-clay-dark">ke Kafe Kaleng</p>
             <address class="mt-8 text-xl not-italic leading-relaxed">Jl. Jamin Ginting Gg. Senina No.11<br>Medan, Indonesia 20155</address>
             <div class="mt-8 flex flex-wrap items-center gap-3">
                 <a href="{{ $maps }}" target="_blank" rel="noopener" class="btn btn-dark">Buka di Google Maps</a>

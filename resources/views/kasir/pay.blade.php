@@ -46,8 +46,8 @@
 
             <fieldset>
                 <legend class="label">Metode pembayaran</legend>
-                <div class="grid grid-cols-3 gap-3">
-                    @foreach (['cash' => 'Tunai', 'qris' => 'QRIS', 'debit' => 'Debit'] as $v => $l)
+                <div class="grid grid-cols-2 gap-3">
+                    @foreach (['cash' => 'Tunai', 'qris' => 'QRIS'] as $v => $l)
                         <label class="block">
                             <input type="radio" name="payment_method" value="{{ $v }}" class="peer sr-only" @checked(old('payment_method', 'cash') === $v)>
                             <span class="block rounded-md border-2 border-sand-2 py-3.5 text-center font-bold transition peer-checked:border-clay peer-checked:bg-clay peer-checked:text-white peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-clay">{{ $l }}</span>
