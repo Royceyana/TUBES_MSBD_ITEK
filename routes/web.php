@@ -39,6 +39,10 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::put('ingredients/{ingredient}', [Admin\IngredientController::class, 'update'])->name('ingredients.update');
     Route::delete('ingredients/{ingredient}', [Admin\IngredientController::class, 'destroy'])->name('ingredients.destroy');
 
+    Route::get('users', [Admin\UserController::class, 'index'])->name('users');
+    Route::post('users', [Admin\UserController::class, 'store'])->name('users.store');
+    Route::put('users/{user}', [Admin\UserController::class, 'update'])->name('users.update');
+
     Route::get('stock', [Admin\StockController::class, 'index'])->name('stock');
     Route::post('stock/in', [Admin\StockController::class, 'store'])->name('stock.in');
     Route::post('stock/opname', [Admin\StockController::class, 'opname'])->name('stock.opname');

@@ -22,7 +22,7 @@ class Transaction extends Model
     public const STATUS_PAID = 'completed';
     public const STATUS_VOID = 'cancelled';
 
-    public const METHOD_LABEL = ['cash' => 'Tunai', 'qris' => 'QRIS', 'debit' => 'Debit'];
+    public const METHOD_LABEL = ['cash' => 'Tunai', 'qris' => 'QRIS'];
     public const STATUS_LABEL = ['pending' => 'Belum bayar', 'completed' => 'Lunas', 'cancelled' => 'Batal'];
     public const ORDER_LABEL = ['waiting' => 'Menunggu', 'preparing' => 'Dimasak', 'ready' => 'Siap diantar', 'served' => 'Diantar'];
 
