@@ -3,6 +3,7 @@
 @push('head')<meta http-equiv="refresh" content="30">@endpush
 
 @php
+    $fmt = fn ($n) => rtrim(rtrim(number_format($n, 2, ',', '.'), '0'), ',');
     $groups = [
         'waiting' => ['Menunggu', 'Mulai masak'],
         'preparing' => ['Sedang dimasak', 'Tandai siap'],
@@ -34,7 +35,21 @@
                             <li class="flex gap-3"><span class="num w-9 font-extrabold text-clay">{{ $d->qty }}×</span><span>{{ $d->menu->name ?? 'Menu dihapus' }}</span></li>
                         @endforeach
                     </ul>
-                    <form method="POST" action="{{ route('dapur.advance', $t) }}" class="mt-5">@csrf
+                    @php $short = $shortages[$t->id] ?? []; $warnReady = $status === 'preparing' && $short; @endphp
+                    @if ($short)
+                        <div class="band mt-4 px-4 py-3" role="alert">
+                            <p class="font-extrabold">Stok bahan kurang</p>
+                            <ul class="mt-1 text-sm font-semibold">
+                                @foreach ($short as $s)
+                                    <li>{{ $s->name }}: perlu {{ $fmt($s->needed) }} {{ $s->unit }}, stok {{ $fmt($s->stock) }} {{ $s->unit }} (kurang {{ $fmt($s->short) }})</li>
+                                @endforeach
+                            </ul>
+                            <a href="{{ route('dapur.stock') }}" class="link mt-2 inline-block text-sm font-bold">Cek stok bahan</a>
+                        </div>
+                    @endif
+                    <form method="POST" action="{{ route('dapur.advance', $t) }}" class="mt-5"
+                          @if ($warnReady) data-confirm="Stok {{ collect($short)->pluck('name')->join(', ') }} tidak cukup. Menandai siap akan memotong stok sehingga bisa menjadi minus. Lanjutkan?" data-confirm-yes="Ya, tandai siap" @endif>@csrf
+                        @if ($warnReady)<input type="hidden" name="confirm_shortage" value="1">@endif
                         <button class="btn {{ $status === 'waiting' ? 'btn-line' : 'btn-primary' }} btn-lg w-full sm:w-auto">{{ $action }}</button>
                     </form>
                 </article>

@@ -64,6 +64,9 @@ Route::middleware(['auth', 'role:kasir'])->prefix('kasir')->name('kasir.')->grou
 Route::middleware(['auth', 'role:dapur'])->prefix('dapur')->name('dapur.')->group(function () {
     Route::get('board', [DapurController::class, 'board'])->name('board');
     Route::post('orders/{transaction}/advance', [DapurController::class, 'advance'])->name('advance');
+    Route::get('stock', [DapurController::class, 'stock'])->name('stock');
+    Route::post('stock/opname', [DapurController::class, 'opname'])->name('stock.opname');
+    Route::get('recipes', [DapurController::class, 'recipes'])->name('recipes');
 });
 
 // ---------- Pelayan ----------

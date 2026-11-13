@@ -4,7 +4,7 @@
     $nav = [
         'admin' => [['admin.dashboard', 'Dashboard', 'admin/dashboard'], ['admin.categories', 'Kategori', 'admin/categories*'], ['admin.menus', 'Menu & Resep', 'admin/menus*'], ['admin.ingredients', 'Bahan baku', 'admin/ingredients*'], ['admin.stock', 'Stok', 'admin/stock*'], ['admin.users', 'Kelola Pengguna', 'admin/users*']],
         'kasir' => [['kasir.dashboard', 'Ringkasan', 'kasir/dashboard'], ['kasir.pos', 'Kasir', 'kasir/pos'], ['kasir.history', 'Riwayat', 'kasir/history*']],
-        'dapur' => [['dapur.board', 'Antrian dapur', 'dapur/*']],
+        'dapur' => [['dapur.board', 'Antrian dapur', 'dapur/board'], ['dapur.stock', 'Stok bahan', 'dapur/stock*'], ['dapur.recipes', 'Resep', 'dapur/recipes*']],
         'waitress' => [['waitress.board', 'Siap diantar', 'pelayan/*']],
         'owner' => [['owner.dashboard', 'Dashboard', 'owner/dashboard'], ['owner.sales', 'Penjualan', 'owner/reports/sales'], ['owner.profit', 'Laba kotor', 'owner/reports/profit'], ['owner.stock', 'Stok', 'owner/reports/stock']],
     ][$role] ?? [];
