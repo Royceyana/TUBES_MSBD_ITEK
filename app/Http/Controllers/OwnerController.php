@@ -50,7 +50,47 @@ class OwnerController extends Controller
 
         $critical = DB::table('v_ingredient_stock')->where('stock_status', '!=', 'aman')->orderBy('stock_qty')->get();
 
-        return view('owner.dashboard', compact('stats', 'chart', 'top', 'critical'));
+        return view('owner.dashboard', [
+            'stats' => $stats, 'chart' => $chart, 'top' => $top, 'critical' => $critical,
+            'orders' => $this->orderSummary(), 'margins' => $this->menuMargins(), 'stock' => $this->stockSummary(),
+        ]);
+    }
+
+    /** Ringkasan status pesanan hari ini: belum dibayar, tahap dapur/pelayan (hanya yang sudah dibayar), dan batal. */
+    private function orderSummary(): array
+    {
+        $r = DB::table('transactions')->whereDate('transaction_date', today())->selectRaw("
+            count(*) filter (where status = 'pending') as unpaid,
+            count(*) filter (where status = 'completed' and order_status = 'waiting') as waiting,
+            count(*) filter (where status = 'completed' and order_status = 'preparing') as preparing,
+            count(*) filter (where status = 'completed' and order_status = 'ready') as ready,
+            count(*) filter (where status = 'completed' and order_status = 'served') as served,
+            count(*) filter (where status = 'cancelled') as cancelled,
+            count(*) as total
+        ")->first();
+
+        return array_map('intval', (array) $r);
+    }
+
+    /** Margin per menu aktif dari view v_menu_hpp (harga jual - HPP resep), margin terendah di atas. */
+    private function menuMargins()
+    {
+        return DB::table('v_menu_hpp as h')
+            ->join('menus as m', 'm.id', '=', 'h.menu_id')
+            ->where('m.status', 'active')
+            ->orderByRaw('h.margin_persen asc nulls last')->orderBy('h.name')
+            ->get(['h.menu_id', 'h.name', 'h.price', 'h.jumlah_bahan', 'h.hpp', 'h.margin', 'h.margin_persen']);
+    }
+
+    /** Hitungan bahan per status dari view v_ingredient_stock. */
+    private function stockSummary(): array
+    {
+        $c = DB::table('v_ingredient_stock')->selectRaw('stock_status, count(*) as n')->groupBy('stock_status')->pluck('n', 'stock_status');
+
+        return [
+            'aman' => (int) ($c['aman'] ?? 0), 'menipis' => (int) ($c['menipis'] ?? 0),
+            'habis' => (int) ($c['habis'] ?? 0), 'total' => (int) $c->sum(),
+        ];
     }
 
     /** Rentang tanggal dari query ?from=&to= (default 7 hari terakhir). */
