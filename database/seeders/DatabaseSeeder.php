@@ -2,32 +2,36 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\Hash;
 
 class DatabaseSeeder extends Seeder
 {
     /**
-     * Akun contoh per role. Aman dijalankan berulang: akun yang emailnya sudah ada
-     * (mis. dari kafe_kaleng.sql) tidak diubah. Kata sandi awal: kaleng123.
-     * Data lain (menu, kategori, bahan, resep) berasal dari kafe_kaleng.sql.
+     * Mengisi database Kafe Kaleng. Aman dijalankan berulang (tidak menimpa atau menggandakan data),
+     * baik di database kosong maupun yang sudah di-restore dari kafe_kaleng.sql.
+     *
+     *   php artisan migrate:fresh --seed     # database kosong, semua terisi
+     *   php artisan db:seed                  # lengkapi data yang belum ada
+     *   php artisan db:seed --class=SampleTransactionSeeder
      */
     public function run(): void
     {
-        $accounts = [
-            ['Admin Kafe', 'admin@kafekaleng.test', 'admin'],
-            ['Kasir 1', 'kasir@kafekaleng.test', 'kasir'],
-            ['Chef 1', 'dapur@kafekaleng.test', 'dapur'],
-            ['Waitress 1', 'waitress@kafekaleng.test', 'waitress'],
-            ['Owner Kaleng', 'owner@kafekaleng.test', 'owner'],
-        ];
+        // Data wajib: akun, menu, resep, dan stok awal agar menu bisa dipesan.
+        $this->call([
+            UserSeeder::class,
+            CategorySeeder::class,
+            IngredientSeeder::class,
+            MenuSeeder::class,
+            RecipeSeeder::class,
+            InitialStockSeeder::class,
+        ]);
 
-        foreach ($accounts as [$name, $email, $role]) {
-            User::firstOrCreate(
-                ['email' => $email],
-                ['name' => $name, 'role' => $role, 'status' => 'active', 'password' => Hash::make('kaleng123')],
-            );
+        // Data contoh untuk demo dan pengujian dashboard/laporan; dilewati di production.
+        if (! app()->isProduction()) {
+            $this->call([
+                SampleTransactionSeeder::class,
+                StockAlertSeeder::class,
+            ]);
         }
     }
 }
