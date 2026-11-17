@@ -1,96 +1,161 @@
-# Aplikasi Kasir & Manajemen Kafe
+# Aplikasi Kasir & Manajemen Kafe — Kafe Kaleng
 
-Sistem manajemen basis data untuk kafe mitra — mencakup transaksi penjualan (POS), manajemen stok bahan baku, dan laporan penjualan & keuangan. Dibangun sebagai Tugas Besar mata kuliah Manajemen Sistem Basis Data.
+Sistem manajemen basis data untuk membantu pengelolaan operasional kafe, meliputi transaksi penjualan (Point of Sales), pengelolaan bahan baku, resep menu, serta laporan penjualan dan stok. Project ini dikembangkan sebagai Tugas Besar mata kuliah Manajemen Sistem Basis Data.
 
 ## Deskripsi
 
-Aplikasi ini dikembangkan untuk membantu kafe mitra mengelola operasional harian yang sebelumnya dilakukan secara manual, meliputi pencatatan transaksi, pemantauan stok bahan baku, hingga penyusunan laporan penjualan dan keuangan secara otomatis dan terintegrasi.
+Kafe Kaleng merupakan aplikasi berbasis web yang dikembangkan untuk membantu kafe mitra mengelola kegiatan operasional secara lebih terstruktur dan terintegrasi.
+
+Aplikasi ini dirancang untuk mendukung pencatatan transaksi penjualan, pengelolaan data menu dan bahan baku, pemantauan persediaan, serta penyajian informasi penjualan dan keuangan. Sistem memanfaatkan database PostgreSQL untuk mengelola data dan menerapkan trigger serta function database dalam mendukung otomatisasi perhitungan transaksi dan pengelolaan stok.
 
 ## Fitur Utama
 
-- **Autentikasi & Manajemen User** — login berbasis role dengan middleware
-- **Master Data** — kategori menu, menu/produk, dan bahan baku (ingredients)
-- **Resep/BOM (Bill of Material)** — relasi antara menu dan bahan baku beserta takaran, sehingga stok berkurang otomatis setiap ada penjualan
-- **Transaksi Penjualan (POS)** — keranjang belanja, metode pembayaran, diskon, cetak struk
-- **Manajemen Stok** — stok masuk (pembelian bahan baku), stok keluar otomatis dari penjualan, stok opname, notifikasi stok menipis
-- **Laporan** — laporan penjualan harian/bulanan, laba-rugi sederhana, produk terlaris, laporan stok
-- **Dashboard Owner** — ringkasan visual (grafik penjualan, produk terlaris, status stok)
+- **Autentikasi dan Manajemen User** — pengelolaan akun pengguna berdasarkan peran dan hak akses.
+- **Master Data** — pengelolaan kategori menu, menu/produk, dan bahan baku (ingredients).
+- **Resep/BOM (Bill of Materials)** — pengaturan hubungan antara menu dan bahan baku beserta jumlah kebutuhan setiap bahan.
+- **Transaksi Penjualan (POS)** — pengelolaan pesanan, keranjang belanja, diskon, metode pembayaran, dan pencetakan struk.
+- **Manajemen Stok** — pencatatan stok masuk, penyesuaian stok melalui stok opname, serta pemantauan ketersediaan bahan baku.
+- **Otomatisasi Database** — pemanfaatan function dan trigger PostgreSQL untuk membantu perhitungan total transaksi dan perubahan persediaan.
+- **Laporan dan Dashboard** — penyajian informasi penjualan, produk terlaris, laba-rugi sederhana, serta kondisi persediaan bahan baku.
 
-## Peran & Hak Akses
+## Peran dan Hak Akses
 
-| Role | Akses |
+| Role | Tanggung Jawab |
 |---|---|
-| **Admin** | Kelola master data, input pembelian stok, kelola user, lihat semua laporan |
-| **Kasir** | Buat transaksi penjualan, lihat stok tersedia, cetak struk |
-| **Owner** | Lihat dashboard & laporan penjualan/keuangan (read-only) |
+| **Admin** | Mengelola data kategori, menu, bahan baku, resep, pengguna, dan persediaan. |
+| **Kasir** | Mengelola transaksi penjualan, pembayaran, dan pencetakan struk. |
+| **Waitress (Pelayan)** | Membuat dan mengelola pesanan pelanggan serta memantau status pesanan. |
+| **Dapur** | Memantau antrean pesanan dan memperbarui status pengerjaan pesanan. |
+| **Owner** | Memantau ringkasan penjualan, produk terlaris, laporan, dan kondisi stok. |
 
-## Tech Stack
+## Teknologi yang Digunakan
 
-- **Backend**: Laravel (PHP)
-- **Database**: Postgress
-- **Frontend**: Blade
-- **Laporan**: Laravel Excel (export), Chart.js (dashboard)
+- **Backend:** Laravel (PHP)
+- **Database:** PostgreSQL
+- **Frontend:** Blade Template, HTML, CSS, dan JavaScript
+- **Asset Management:** Vite
+- **Database Automation:** PostgreSQL Function dan Trigger
 
 ## Struktur Database
 
-Entitas utama: `users`, `categories`, `menus`, `ingredients`, `menu_ingredients`, `transactions`, `transaction_details`, `stock_movements`.
+Entitas utama yang digunakan dalam sistem meliputi:
 
-Alur singkat:
-1. Kasir membuat transaksi → sistem mengecek kebutuhan bahan baku via `menu_ingredients`
-2. Transaksi tersimpan di `transactions` & `transaction_details`
-3. Stok bahan baku otomatis berkurang, tercatat di `stock_movements` (type: `out`)
-4. Admin mencatat pembelian bahan baku → `stock_movements` (type: `in`) → `ingredients.stock_qty` bertambah
-5. Laporan penjualan & laba-rugi dihasilkan dari agregasi `transactions` dan `stock_movements`
+- `users` — menyimpan data pengguna dan peran.
+- `categories` — menyimpan kategori menu.
+- `menus` — menyimpan data produk atau menu.
+- `ingredients` — menyimpan data bahan baku dan jumlah persediaan.
+- `menu_ingredients` — menghubungkan menu dengan bahan baku sebagai resep atau BOM.
+- `transactions` — menyimpan data transaksi penjualan.
+- `transaction_details` — menyimpan rincian menu dalam transaksi.
+- `stock_movements` — mencatat perubahan persediaan bahan baku.
 
-## Instalasi & Setup
+### Alur Pengelolaan Data
+
+1. Kasir membuat pesanan melalui halaman POS.
+2. Sistem memeriksa ketersediaan menu berdasarkan kebutuhan bahan baku yang tersimpan pada `menu_ingredients`.
+3. Data transaksi dan rincian pesanan disimpan ke tabel `transactions` dan `transaction_details`.
+4. Setelah pesanan mencapai status `ready`, trigger database memproses pengurangan stok bahan baku dan mencatat pergerakannya pada `stock_movements`.
+5. Admin mencatat stok masuk ketika terdapat pembelian bahan baku.
+6. Database memperbarui jumlah persediaan berdasarkan transaksi stok masuk dan penyesuaian stok.
+7. Data transaksi dan persediaan digunakan untuk menyajikan informasi penjualan, produk terlaris, dan laporan stok.
+
+## Instalasi dan Konfigurasi
+
+### 1. Clone Repository
 
 ```bash
-# Clone repository
 git clone <url-repository>
 cd <nama-folder>
+```
 
-# Install dependencies
+### 2. Install Dependencies
+
+```bash
 composer install
 npm install
+```
 
-# Konfigurasi environment
-cp .env.example .env
+### 3. Konfigurasi Environment
+
+Salin file `.env.example` menjadi `.env`, kemudian sesuaikan konfigurasi database PostgreSQL.
+
+```env
+DB_CONNECTION=pgsql
+DB_HOST=127.0.0.1
+DB_PORT=5432
+DB_DATABASE=nama_database
+DB_USERNAME=postgres
+DB_PASSWORD=password_database
+```
+
+Buat application key:
+
+```bash
 php artisan key:generate
+```
 
-# Sesuaikan koneksi database di .env
-# DB_DATABASE=nama_database
-# DB_USERNAME=root
-# DB_PASSWORD=
+### 4. Migrasi dan Seeding Database
 
-# Migrasi & seeding database
+```bash
 php artisan migrate --seed
+```
 
-# Jalankan build asset
+Pastikan PostgreSQL sudah berjalan dan database telah dibuat sebelum menjalankan migrasi.
+
+### 5. Jalankan Aplikasi
+
+Jalankan Vite pada terminal pertama:
+
+```bash
 npm run dev
+```
 
-# Jalankan server lokal
+Jalankan Laravel pada terminal kedua:
+
+```bash
 php artisan serve
 ```
 
-## Struktur Folder (ringkas)
+Aplikasi dapat diakses melalui:
 
+```text
+http://127.0.0.1:8000
 ```
+
+## Struktur Folder
+
+```text
 app/
- ├── Models/            # Eloquent models (User, Menu, Ingredient, Transaction, dst)
- ├── Http/Controllers/  # Controller per modul (Auth, POS, Stok, Laporan)
- └── Http/Middleware/   # Middleware pengecekan role (admin, kasir, owner)
+ ├── Models/                 # Model aplikasi
+ ├── Http/
+ │   ├── Controllers/        # Controller setiap modul
+ │   └── Middleware/         # Middleware hak akses
+ └── Services/               # Logika layanan aplikasi
+
 database/
- ├── migrations/        # Struktur tabel
- └── seeders/           # Data awal (kategori, menu default, user demo)
-resources/views/        # Blade views per role
-routes/web.php          # Routing aplikasi
+ ├── migrations/             # Struktur tabel
+ ├── seeders/                # Data awal pengguna
+ └── sql/                    # SQL schema, function, dan trigger
+
+resources/
+ └── views/                  # Tampilan Blade
+
+routes/
+ └── web.php                 # Routing aplikasi
 ```
 
 ## Tim Pengembang
 
-- Kelompok: _isi nama kelompok_
-- Anggota: _isi nama & NIM_
+- Kelompok: 
+
+### Anggota
+
+- Royceyana Yosephine Silaban
+- Deby Yasmin Nabila
+- Cellin Angela Simanungkalit
+- Novita Barti Br Barus
+- Debora Elsa Naomi Tampubolon
 
 ## Lisensi
 
-Project ini dibuat untuk keperluan akademik (Tugas Besar Manajemen Sistem Basis Data).
+Project ini dikembangkan untuk keperluan akademik sebagai Tugas Besar mata kuliah Manajemen Sistem Basis Data.
