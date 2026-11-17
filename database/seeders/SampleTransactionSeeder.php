@@ -132,12 +132,14 @@ class SampleTransactionSeeder extends Seeder
             // Dibaca trigger pemotongan stok agar pergerakan stok tercatat atas nama dapur.
             DB::select("select set_config('app.user_id', ?, true)", [(string) $this->dapurId]);
 
+            $dineIn = mt_rand(1, 100) <= 85;
             $id = DB::table('transactions')->insertGetId([
                 'user_id' => $o['user_id'],
                 'transaction_date' => $o['at']->format('Y-m-d H:i:s'),
                 'status' => 'pending',
                 'order_status' => 'waiting',
-                'table_no' => mt_rand(1, 100) <= 85 ? (string) mt_rand(1, 12) : null,
+                'order_type' => $dineIn ? 'dine_in' : 'takeaway',
+                'table_no' => $dineIn ? (string) mt_rand(1, 12) : null,
                 'discount_type' => $discount[0] ?? 'none',
                 'discount_value' => $discount[1] ?? 0,
             ]);
@@ -168,7 +170,11 @@ class SampleTransactionSeeder extends Seeder
                     break;
                 }
 
-                DB::table('transactions')->where('id', $id)->update(['order_status' => $step]);
+                DB::table('transactions')->where('id', $id)->update(['order_status' => $step]
+                    + ($step === 'served' ? [
+                        'served_at' => $o['at']->copy()->addMinutes(35)->format('Y-m-d H:i:s'),
+                        'served_by' => DB::table('users')->where('role', 'waitress')->orderBy('id')->value('id'),
+                    ] : []));
 
                 if ($step === 'ready') {
                     // Pemakaian bahan dicatat trigger dengan waktu "sekarang"; selaraskan dengan tanggal pesanan.

@@ -28,7 +28,7 @@
                 <article class="border-b border-sand-2 py-6">
                     <div class="flex items-baseline justify-between gap-3">
                         <h3 class="display text-2xl">{{ $t->number }}</h3>
-                        <p class="text-sm font-bold text-muted">{{ $t->table_no ? 'Meja '.$t->table_no : 'Bawa pulang' }} · {{ $t->transaction_date?->format('H:i') }}</p>
+                        <p class="text-sm font-bold text-muted">{{ $t->place_label }} · {{ $t->transaction_date?->format('H:i') }}</p>
                     </div>
                     <ul class="mt-3 space-y-1.5 text-lg">
                         @foreach ($t->details as $d)
@@ -65,7 +65,7 @@
         <h2 id="g-done" class="script text-4xl">Siap, menunggu diantar</h2>
         <ul class="mt-3 divide-y divide-sand">
             @foreach ($done as $t)
-                <li class="flex flex-wrap gap-x-6 gap-y-1 py-3"><span class="num font-bold">{{ $t->number }}</span><span class="muted">{{ $t->table_no ? 'Meja '.$t->table_no : 'Bawa pulang' }}</span><span class="text-muted">{{ $t->details->map(fn ($d) => $d->qty.'× '.($d->menu->name ?? '-'))->implode(', ') }}</span></li>
+                <li class="flex flex-wrap gap-x-6 gap-y-1 py-3"><span class="num font-bold">{{ $t->number }}</span><span class="muted">{{ $t->place_label }}</span><span class="text-muted">{{ $t->details->map(fn ($d) => $d->qty.'× '.($d->menu->name ?? '-'))->implode(', ') }}</span></li>
             @endforeach
         </ul>
     </section>

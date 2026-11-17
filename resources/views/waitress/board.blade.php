@@ -13,7 +13,7 @@
         @forelse ($ready as $t)
             <article class="border-b border-sand-2 py-6">
                 <div class="flex items-baseline justify-between gap-3">
-                    <h3 class="display text-2xl">{{ $t->table_no ? 'Meja '.$t->table_no : 'Bawa pulang' }}</h3>
+                    <h3 class="display text-2xl">{{ $t->place_label }}</h3>
                     <p class="text-sm font-bold text-muted">{{ $t->number }} · {{ $t->transaction_date?->format('H:i') }}</p>
                 </div>
                 <ul class="mt-3 space-y-1.5 text-lg">
@@ -34,7 +34,7 @@
         <h2 id="g-coming" class="script border-b-2 border-cocoa pb-2 text-4xl">Masih di dapur <span class="num text-2xl text-muted">({{ $coming->count() }})</span></h2>
         <ul class="mt-2 divide-y divide-sand">
             @forelse ($coming as $t)
-                <li class="py-3"><span class="num font-bold">{{ $t->number }}</span> <span class="muted">· {{ $t->table_no ? 'Meja '.$t->table_no : 'Bawa pulang' }}</span>
+                <li class="py-3"><span class="num font-bold">{{ $t->number }}</span> <span class="muted">· {{ $t->place_label }}</span>
                     <span class="status {{ $t->order_status === 'preparing' ? 'status-warn' : 'status-mute' }} ml-2">{{ \App\Models\Transaction::ORDER_LABEL[$t->order_status] }}</span></li>
             @empty
                 <li class="muted py-4">Kosong.</li>
@@ -42,10 +42,13 @@
         </ul>
 
         @if ($served->isNotEmpty())
-            <h2 class="script mt-12 text-4xl">Sudah diantar</h2>
+            <div class="mt-12 flex items-baseline justify-between gap-3">
+                <h2 class="script text-4xl">Sudah diantar</h2>
+                <a href="{{ route('waitress.history') }}" class="link text-sm">Lihat riwayat</a>
+            </div>
             <ul class="mt-2 divide-y divide-sand">
                 @foreach ($served as $t)
-                    <li class="py-3"><span class="num font-bold">{{ $t->number }}</span> <span class="muted">· {{ $t->table_no ? 'Meja '.$t->table_no : 'Bawa pulang' }}</span></li>
+                    <li class="py-3"><span class="num font-bold">{{ $t->number }}</span> <span class="muted">· {{ $t->place_label }}@if ($t->served_at) · {{ $t->served_at->format('H:i') }}@endif</span></li>
                 @endforeach
             </ul>
         @endif

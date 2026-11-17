@@ -72,6 +72,7 @@ Route::middleware(['auth', 'role:dapur'])->prefix('dapur')->name('dapur.')->grou
 // ---------- Pelayan ----------
 Route::middleware(['auth', 'role:waitress'])->prefix('pelayan')->name('waitress.')->group(function () {
     Route::get('board', [WaitressController::class, 'board'])->name('board');
+    Route::get('history', [WaitressController::class, 'history'])->name('history');
     Route::post('orders/{transaction}/serve', [WaitressController::class, 'serve'])->name('serve');
 });
 

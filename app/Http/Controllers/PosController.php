@@ -66,7 +66,7 @@ class PosController extends Controller
             'id' => $t->id,
             'number' => $t->number,
             'time' => $t->transaction_date?->format('H:i'),
-            'table' => $t->table_no,
+            'place' => $t->order_type === Transaction::TYPE_TAKEAWAY ? 'Bawa pulang' : $t->table_no,
             'items' => $t->details->map(fn ($d) => $d->qty.'× '.($d->menu->name ?? 'Menu dihapus'))->implode(', '),
             'method' => $t->method_label,
             'total' => (int) $t->total,
@@ -97,8 +97,15 @@ class PosController extends Controller
             'items' => ['required', 'array', 'min:1'],
             'items.*.menu_id' => ['required', 'integer'],
             'items.*.qty' => ['required', 'integer', 'min:1', 'max:99'],
-            'table_no' => ['nullable', 'string', 'max:10'],
+            'order_type' => ['required', 'in:dine_in,takeaway'],
+            'table_no' => ['required_if:order_type,dine_in', 'nullable', 'string', 'max:10'],
+        ], [
+            'order_type.required' => 'Pilih jenis pesanan: makan di tempat atau bawa pulang.',
+            'table_no.required_if' => 'Nomor meja wajib diisi untuk pesanan makan di tempat.',
         ]);
+
+        $isDineIn = $data['order_type'] === Transaction::TYPE_DINE_IN;
+        $tableNo = $isDineIn ? trim((string) $data['table_no']) : null;   // bawa pulang: tanpa meja
 
         $qtyByMenu = collect($data['items'])->groupBy('menu_id')->map(fn ($rows) => (int) $rows->sum('qty'));
 
@@ -118,12 +125,13 @@ class PosController extends Controller
             }
         }
 
-        $transaction = DB::transaction(function () use ($data, $qtyByMenu, $menus) {
+        $transaction = DB::transaction(function () use ($data, $tableNo, $qtyByMenu, $menus) {
             $t = Transaction::create([
                 'user_id' => Auth::id(),
                 'status' => Transaction::STATUS_PENDING,
                 'order_status' => 'waiting',
-                'table_no' => $data['table_no'] ?? null,
+                'order_type' => $data['order_type'],
+                'table_no' => $tableNo,
                 'transaction_date' => now(),
             ]);
 
@@ -243,6 +251,7 @@ class PosController extends Controller
             'date' => $transaction->transaction_date?->format('d/m/Y H:i'),
             'cashier' => $transaction->user->name ?? '-',
             'table' => $transaction->table_no,
+            'type' => Transaction::TYPE_LABEL[$transaction->order_type] ?? '-',
             'items' => $transaction->details->map(function ($d) {
                 return (object) [
                     'name' => $d->menu->name ?? 'Menu dihapus',

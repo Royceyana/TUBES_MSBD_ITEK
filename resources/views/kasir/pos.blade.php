@@ -50,7 +50,7 @@
         class="fixed inset-x-0 bottom-0 z-40 flex max-h-[90dvh] translate-y-full flex-col rounded-t-2xl bg-sand transition-transform duration-500 ease-[cubic-bezier(.22,1,.36,1)]
                data-[open=true]:translate-y-0 lg:sticky lg:top-0 lg:z-auto lg:h-dvh lg:max-h-none lg:translate-y-0 lg:rounded-none">
         <div class="flex items-start justify-between gap-3 px-6 pb-3 pt-6">
-            <div><h2 class="display text-3xl">Pesanan</h2><span class="script ml-3 text-2xl text-clay-dark">meja &amp; menu</span></div>
+            <div><h2 class="display text-3xl">Pesanan</h2><span class="script ml-3 text-2xl text-clay-dark">jenis &amp; menu</span></div>
             <div class="flex gap-1.5">
                 <button type="button" id="cart-clear" class="btn btn-line btn-sm">Kosongkan</button>
                 <button type="button" class="btn btn-line btn-icon btn-sm lg:hidden" data-toggle="cart" aria-label="Tutup pesanan"><x-icon name="x" size="size-4" /></button>
@@ -62,9 +62,15 @@
 
         <form id="checkout" method="POST" action="{{ route('kasir.orders.store') }}" class="border-t-2 border-cocoa px-6 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-5">
             @csrf
-            <div class="flex items-center justify-between gap-4">
+            @php $type = old('order_type', 'dine_in'); @endphp
+            <input type="hidden" name="order_type" id="order_type" value="{{ $type }}">
+            <div id="order-types" class="grid grid-cols-2 gap-2" role="group" aria-label="Jenis pesanan">
+                <button type="button" class="chip justify-center" data-type="dine_in" aria-pressed="{{ $type === 'dine_in' ? 'true' : 'false' }}">Makan di tempat</button>
+                <button type="button" class="chip justify-center" data-type="takeaway" aria-pressed="{{ $type === 'takeaway' ? 'true' : 'false' }}">Bawa pulang</button>
+            </div>
+            <div id="table-row" class="mt-4 flex items-center justify-between gap-4" @if ($type === 'takeaway') hidden @endif>
                 <label for="table_no" class="label !mb-0">Nomor meja</label>
-                <input id="table_no" name="table_no" maxlength="10" class="input !min-h-10 !w-36 text-center" placeholder="Bawa pulang" value="{{ old('table_no') }}">
+                <input id="table_no" name="table_no" maxlength="10" class="input !min-h-10 !w-36 text-center" placeholder="mis. 5" autocomplete="off" value="{{ old('table_no') }}" @if ($type === 'takeaway') disabled @endif>
             </div>
             <p class="mt-5 flex items-baseline justify-between"><span class="font-bold">Total</span><span id="t-total" class="display num text-3xl">Rp 0</span></p>
             <button id="save-btn" class="btn btn-primary btn-lg mt-4 w-full" disabled>Simpan &amp; bayar</button>
@@ -139,9 +145,26 @@ addEventListener('DOMContentLoaded', () => {
         cat = b.dataset.cat; filter();
     });
 
+    // Jenis pesanan: makan di tempat (nomor meja wajib) atau bawa pulang (tanpa meja)
+    const setType = (type) => {
+        $('#order_type').value = type;
+        $$('#order-types .chip').forEach((c) => c.setAttribute('aria-pressed', String(c.dataset.type === type)));
+        const dineIn = type === 'dine_in';
+        $('#table-row').hidden = !dineIn;
+        $('#table_no').disabled = !dineIn;          // input disabled tidak ikut terkirim
+        if (!dineIn) $('#table_no').value = '';
+        if (dineIn) $('#table_no').focus();
+    };
+    $('#order-types').addEventListener('click', (e) => {
+        const b = e.target.closest('.chip'); if (b) setType(b.dataset.type);
+    });
+
     // Serialisasi keranjang ke input tersembunyi (PosController@store)
     $('#checkout').addEventListener('submit', (e) => {
         if (!cart.size) { e.preventDefault(); return; }
+        if ($('#order_type').value === 'dine_in' && !$('#table_no').value.trim()) {
+            e.preventDefault(); toast('Isi nomor meja untuk pesanan makan di tempat.', true); $('#table_no').focus(); return;
+        }
         const f = e.target;
         $$('input[data-item]', f).forEach((i) => i.remove());
         [...cart.values()].forEach((it, k) => {

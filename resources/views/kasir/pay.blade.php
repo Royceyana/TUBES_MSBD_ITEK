@@ -10,7 +10,7 @@
     {{-- Ringkasan pesanan --}}
     <section class="md:pr-12" aria-labelledby="sum-h">
         <h2 id="sum-h" class="script text-4xl">Ringkasan pesanan</h2>
-        <p class="muted mt-1 text-sm">@if ($transaction->table_no)Meja {{ $transaction->table_no }}@else Bawa pulang @endif</p>
+        <p class="muted mt-1 text-sm">{{ \App\Models\Transaction::TYPE_LABEL[$transaction->order_type] ?? '' }} · {{ $transaction->order_type === 'takeaway' ? 'tanpa meja' : 'Meja '.$transaction->table_no }}</p>
         <table class="tbl mt-4">
             <thead><tr><th>Menu</th><th class="r">Jumlah</th><th class="r">Subtotal</th></tr></thead>
             <tbody>

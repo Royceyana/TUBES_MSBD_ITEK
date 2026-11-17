@@ -32,7 +32,7 @@ class DapurFlowTest extends TestCase
             DB::table('stock_movements')->insert(['ingredient_id' => $r->ingredient_id, 'type' => 'in', 'qty' => $r->qty_needed * 5, 'notes' => 'test']);
         }
 
-        $this->actingAs($this->user('kasir'))->post('/kasir/orders', ['items' => [['menu_id' => $menu->id, 'qty' => 1]], 'table_no' => '3']);
+        $this->actingAs($this->user('kasir'))->post('/kasir/orders', ['items' => [['menu_id' => $menu->id, 'qty' => 1]], 'order_type' => 'dine_in', 'table_no' => '3']);
         $trx = Transaction::latest('id')->first();
         $this->post("/kasir/orders/{$trx->id}/pay", ['payment_method' => 'qris']);
 

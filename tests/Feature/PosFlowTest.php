@@ -56,9 +56,11 @@ class PosFlowTest extends TestCase
         $kasir = $this->user('kasir');
         $menu = $this->stockedMenu();
 
-        $this->actingAs($kasir)->post('/kasir/orders', ['items' => [['menu_id' => $menu->id, 'qty' => 2]], 'table_no' => '4']);
+        $this->actingAs($kasir)->post('/kasir/orders', ['items' => [['menu_id' => $menu->id, 'qty' => 2]], 'order_type' => 'dine_in', 'table_no' => '4']);
         $trx = Transaction::latest('id')->first();
         $this->assertSame('pending', $trx->status);
+        $this->assertSame('dine_in', $trx->order_type);
+        $this->assertSame('4', $trx->table_no);
         $this->assertEquals($menu->price * 2, $trx->total);            // total dihitung trigger
 
         $this->post("/kasir/orders/{$trx->id}/pay", ['payment_method' => 'cash', 'paid' => $menu->price * 2 + 5000])
@@ -85,7 +87,12 @@ class PosFlowTest extends TestCase
         $pelayan = $this->user('waitress');
         $this->actingAs($pelayan)->post("/pelayan/orders/{$trx->id}/serve");
         $this->assertSame('served', $trx->fresh()->order_status);
+        $this->assertSame($pelayan->id, $trx->fresh()->served_by);
+        $this->assertNotNull($trx->fresh()->served_at);
         $this->post("/pelayan/orders/{$trx->id}/serve")->assertSessionHasErrors('order');
+
+        // Riwayat pelayan memuat pesanan yang sudah dikonfirmasi diantar
+        $this->get('/pelayan/history')->assertOk()->assertSee($trx->number)->assertSee('Meja 4');
     }
 
     public function test_diskon_persen_dihitung_trigger_dan_qris_diterima(): void
@@ -93,7 +100,7 @@ class PosFlowTest extends TestCase
         $kasir = $this->user('kasir');
         $menu = $this->stockedMenu();
 
-        $this->actingAs($kasir)->post('/kasir/orders', ['items' => [['menu_id' => $menu->id, 'qty' => 2]]]);
+        $this->actingAs($kasir)->post('/kasir/orders', ['items' => [['menu_id' => $menu->id, 'qty' => 2]], 'order_type' => 'takeaway']);
         $trx = Transaction::latest('id')->first();
         $subtotal = (int) $menu->price * 2;
 
@@ -111,7 +118,7 @@ class PosFlowTest extends TestCase
     public function test_metode_debit_tidak_lagi_diterima(): void
     {
         $menu = $this->stockedMenu();
-        $this->actingAs($this->user('kasir'))->post('/kasir/orders', ['items' => [['menu_id' => $menu->id, 'qty' => 1]]]);
+        $this->actingAs($this->user('kasir'))->post('/kasir/orders', ['items' => [['menu_id' => $menu->id, 'qty' => 1]], 'order_type' => 'takeaway']);
         $trx = Transaction::latest('id')->first();
 
         $this->post("/kasir/orders/{$trx->id}/pay", ['payment_method' => 'debit'])->assertSessionHasErrors('payment_method');
@@ -123,7 +130,7 @@ class PosFlowTest extends TestCase
         $kasir = $this->user('kasir');
         $menu = $this->stockedMenu();
 
-        $this->actingAs($kasir)->post('/kasir/orders', ['items' => [['menu_id' => $menu->id, 'qty' => 1]]]);
+        $this->actingAs($kasir)->post('/kasir/orders', ['items' => [['menu_id' => $menu->id, 'qty' => 1]], 'order_type' => 'takeaway']);
         $trx = Transaction::latest('id')->first();
 
         $this->post("/kasir/orders/{$trx->id}/pay", ['payment_method' => 'cash', 'paid' => 1, 'discount_type' => 'amount', 'discount_value' => 1000])
@@ -138,7 +145,7 @@ class PosFlowTest extends TestCase
     {
         $kasir = $this->user('kasir');
         $menu = $this->stockedMenu();
-        $this->actingAs($kasir)->post('/kasir/orders', ['items' => [['menu_id' => $menu->id, 'qty' => 1]]]);
+        $this->actingAs($kasir)->post('/kasir/orders', ['items' => [['menu_id' => $menu->id, 'qty' => 1]], 'order_type' => 'takeaway']);
         $trx = Transaction::latest('id')->first();
         $this->post("/kasir/orders/{$trx->id}/pay", ['payment_method' => 'qris']);
 
@@ -152,12 +159,37 @@ class PosFlowTest extends TestCase
         $kasir = $this->user('kasir');
         $menu = $this->stockedMenu();
 
-        $this->actingAs($kasir)->post('/kasir/orders', ['items' => [['menu_id' => $menu->id, 'qty' => 1]]]);
+        $this->actingAs($kasir)->post('/kasir/orders', ['items' => [['menu_id' => $menu->id, 'qty' => 1]], 'order_type' => 'takeaway']);
         $trx = Transaction::latest('id')->first();
         $this->post("/kasir/orders/{$trx->id}/void");
         $this->assertSame('cancelled', $trx->fresh()->status);
 
-        $this->post('/kasir/orders', ['items' => [['menu_id' => $menu->id, 'qty' => 99]]])->assertSessionHasErrors('items');
+        $this->post('/kasir/orders', ['items' => [['menu_id' => $menu->id, 'qty' => 99]], 'order_type' => 'takeaway'])->assertSessionHasErrors('items');
+    }
+
+    public function test_jenis_pesanan_makan_di_tempat_wajib_nomor_meja_dan_bawa_pulang_tanpa_meja(): void
+    {
+        $kasir = $this->user('kasir');
+        $menu = $this->stockedMenu();
+        $items = [['menu_id' => $menu->id, 'qty' => 1]];
+
+        // Jenis pesanan wajib dipilih
+        $this->actingAs($kasir)->post('/kasir/orders', ['items' => $items])->assertSessionHasErrors('order_type');
+        // Makan di tempat tanpa nomor meja ditolak
+        $this->post('/kasir/orders', ['items' => $items, 'order_type' => 'dine_in'])->assertSessionHasErrors('table_no');
+
+        // Makan di tempat + meja diterima
+        $this->post('/kasir/orders', ['items' => $items, 'order_type' => 'dine_in', 'table_no' => '7'])->assertSessionHasNoErrors();
+        $dine = Transaction::latest('id')->first();
+        $this->assertSame(['dine_in', '7'], [$dine->order_type, $dine->table_no]);
+
+        // Bawa pulang: nomor meja diabaikan
+        $this->post('/kasir/orders', ['items' => $items, 'order_type' => 'takeaway', 'table_no' => '9'])->assertSessionHasNoErrors();
+        $take = Transaction::latest('id')->first();
+        $this->assertSame(['takeaway', null], [$take->order_type, $take->table_no]);
+
+        // Riwayat kasir: kolom Pembayaran & Status
+        $this->get('/kasir/history')->assertOk()->assertSee('Pembayaran')->assertDontSee('Dapur');
     }
 
     public function test_halaman_utama_menampilkan_menu_dari_database(): void

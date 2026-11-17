@@ -26,7 +26,8 @@
         <div class="flex justify-between"><span>No</span><span>{{ $trx->number }}</span></div>
         <div class="flex justify-between"><span>Tanggal</span><span>{{ $trx->date }}</span></div>
         <div class="flex justify-between"><span>Kasir</span><span>{{ $trx->cashier }}</span></div>
-        <div class="flex justify-between"><span>Meja</span><span>{{ $trx->table ?: 'Bawa pulang' }}</span></div>
+        <div class="flex justify-between"><span>Jenis</span><span>{{ $trx->type }}</span></div>
+        <div class="flex justify-between"><span>Meja</span><span>{{ $trx->table ?: '-' }}</span></div>
         <hr>
         @foreach ($trx->items as $it)
             <div>{{ $it->name }}</div>

@@ -36,12 +36,14 @@ class MenuController extends Controller
             'price' => ['required', 'integer', 'min:1', 'max:99999999'],
             'status' => ['required', 'in:active,inactive'],
             'image' => ['nullable', 'image', 'max:2048'],
+            'remove_image' => ['nullable', 'boolean'],
         ];
     }
 
     public function store(Request $request): RedirectResponse
     {
         $data = $request->validate($this->rules());
+        unset($data['remove_image']);
         $data['image'] = $request->file('image')?->store('menus', 'public');
         Menu::create($data);
 
@@ -51,17 +53,26 @@ class MenuController extends Controller
     public function update(Request $request, Menu $menu): RedirectResponse
     {
         $data = $request->validate($this->rules($menu));
+        $removeImage = (bool) ($data['remove_image'] ?? false);
+        unset($data['remove_image']);
+
         if ($request->hasFile('image')) {
+            // Foto baru menggantikan yang lama.
             if ($menu->image) {
                 Storage::disk('public')->delete($menu->image);
             }
             $data['image'] = $request->file('image')->store('menus', 'public');
+        } elseif ($removeImage) {
+            if ($menu->image) {
+                Storage::disk('public')->delete($menu->image);
+            }
+            $data['image'] = null;
         } else {
-            unset($data['image']);
+            unset($data['image']);   // tidak ada perubahan foto: pertahankan yang lama
         }
         $menu->update($data);
 
-        return back()->with('success', 'Menu diperbarui.');
+        return back()->with('success', 'Menu "'.$menu->name.'" diperbarui.');
     }
 
     public function destroy(Menu $menu): RedirectResponse
@@ -83,8 +94,10 @@ class MenuController extends Controller
     public function recipe(Menu $menu): View
     {
         $menu->category_name = DB::table('categories')->where('id', $menu->category_id)->value('name');
-        $ingredients = Ingredient::where('is_active', true)->orderBy('name')->get();
-        $recipe = DB::table('menu_ingredients')->where('menu_id', $menu->id)->get();
+        $recipe = DB::table('menu_ingredients')->where('menu_id', $menu->id)->orderBy('id')->get();
+        $ingredients = Ingredient::where('is_active', true)
+            ->orWhereIn('id', $recipe->pluck('ingredient_id'))
+            ->orderBy('name')->get();
         $hpp = DB::table('v_menu_hpp')->where('menu_id', $menu->id)->first();
 
         return view('admin.recipe', compact('menu', 'ingredients', 'recipe', 'hpp'));
@@ -99,8 +112,12 @@ class MenuController extends Controller
             'qty_needed.*' => ['numeric', 'gt:0', 'max:99999999'],
         ]);
 
-        $ids = $data['ingredient_id'] ?? [];
-        $qtys = $data['qty_needed'] ?? [];
+        $ids = array_values($data['ingredient_id'] ?? []);
+        $qtys = array_values($data['qty_needed'] ?? []);
+
+        if (count($ids) !== count($qtys)) {
+            throw ValidationException::withMessages(['qty_needed' => 'Setiap bahan harus punya takaran.']);
+        }
 
         DB::transaction(function () use ($menu, $ids, $qtys) {
             DB::table('menu_ingredients')->where('menu_id', $menu->id)->delete();

@@ -17,13 +17,13 @@
 
 <div class="mt-8 overflow-x-auto">
     <table class="tbl min-w-[48rem]">
-        <thead><tr><th>No</th><th>Waktu</th><th>Meja</th><th>Item</th><th>Bayar</th><th class="r">Total</th><th>Status</th><th>Dapur</th><th></th></tr></thead>
+        <thead><tr><th>No</th><th>Waktu</th><th>Meja</th><th>Item</th><th>Metode</th><th class="r">Total</th><th>Pembayaran</th><th>Status</th><th></th></tr></thead>
         <tbody id="trx-rows">
             @foreach ($transactions as $t)
                 <tr>
                     <td class="num font-bold">{{ $t->number }}</td>
                     <td>{{ $t->time }}</td>
-                    <td>{{ $t->table ?: '-' }}</td>
+                    <td>{{ $t->place }}</td>
                     <td class="max-w-64 truncate text-muted">{{ $t->items }}</td>
                     <td>{{ $t->method }}</td>
                     <td class="num r font-bold">Rp {{ number_format($t->total, 0, ',', '.') }}</td>

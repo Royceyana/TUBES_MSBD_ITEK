@@ -4,7 +4,7 @@
 @section('content')
 <x-page-head title="Menu" script="& resep">
     <button type="button" class="btn btn-primary" data-modal-open="menu-form" data-title="Tambah menu" data-action="{{ route('admin.menus.store') }}" data-method="POST"
-        data-fill-name="" data-fill-price="" data-fill-category_id="{{ $categories->first()->id ?? '' }}" data-fill-status="active">Tambah menu</button>
+        data-fill-name="" data-fill-price="" data-fill-category_id="{{ $categories->first()->id ?? '' }}" data-fill-status="active" data-has-image="0">Tambah menu</button>
 </x-page-head>
 
 @if ($menus->isEmpty())
@@ -42,7 +42,7 @@
                             <div class="inline-flex gap-2">
                                 <a href="{{ route('admin.menus.recipe', $m->id) }}" class="btn btn-dark btn-sm" aria-label="Resep {{ $m->name }}">Resep</a>
                                 <button type="button" class="btn btn-line btn-sm" aria-label="Ubah {{ $m->name }}" data-modal-open="menu-form" data-title="Ubah menu" data-action="{{ route('admin.menus.update', $m->id) }}" data-method="PUT"
-                                    data-fill-name="{{ $m->name }}" data-fill-price="{{ (int) $m->price }}" data-fill-category_id="{{ $m->category_id }}" data-fill-status="{{ $m->status }}">Ubah</button>
+                                    data-fill-name="{{ $m->name }}" data-fill-price="{{ (int) $m->price }}" data-fill-category_id="{{ $m->category_id }}" data-fill-status="{{ $m->status }}" data-has-image="{{ $m->image ? 1 : 0 }}">Ubah</button>
                                 <form method="POST" action="{{ route('admin.menus.destroy', $m->id) }}" data-confirm="Menu “{{ $m->name }}” akan dihapus beserta resepnya. Menu yang pernah terjual tidak bisa dihapus, nonaktifkan saja." data-confirm-yes="Ya, hapus">@csrf @method('DELETE')
                                     <button class="btn btn-danger btn-sm" aria-label="Hapus {{ $m->name }}">Hapus</button></form>
                             </div>
@@ -59,19 +59,61 @@
 <x-modal id="menu-form" title="Tambah menu" :large="true">
     <form method="POST" action="{{ route('admin.menus.store') }}" enctype="multipart/form-data" class="space-y-5">@csrf
         <input type="hidden" name="_method" value="POST">
+        <input type="hidden" name="_form" value="menu"><input type="hidden" name="_return_action" value=""><input type="hidden" name="_return_title" value="">
         <div><label class="label" for="m-name">Nama menu</label><input id="m-name" name="name" class="input" required maxlength="100" placeholder="mis. Nasi Goreng Kampung"></div>
         <div class="grid gap-4 sm:grid-cols-2">
             <div><label class="label" for="m-cat">Kategori</label>
                 <select id="m-cat" name="category_id" class="select"><option value="">Tanpa kategori</option>@foreach ($categories as $c)<option value="{{ $c->id }}">{{ $c->name }}</option>@endforeach</select></div>
-            <div><label class="label" for="m-price">Harga (Rp)</label><input id="m-price" name="price" type="number" min="1" step="500" class="input num" required placeholder="15000"></div>
+            <div><label class="label" for="m-price">Harga (Rp)</label><input id="m-price" name="price" type="number" min="1" step="1" inputmode="numeric" class="input num" required placeholder="15000"></div>
         </div>
         <div class="grid gap-4 sm:grid-cols-2">
             <div><label class="label" for="m-status">Status</label>
                 <select id="m-status" name="status" class="select"><option value="active">Aktif, tampil di kasir</option><option value="inactive">Nonaktif, disembunyikan</option></select></div>
-            <div><label class="label" for="m-img">Foto (opsional)</label><input id="m-img" type="file" name="image" accept="image/*" class="input !py-2 text-sm"><p class="help">JPG/PNG, maksimal 2 MB.</p></div>
+            <div><label class="label" for="m-img">Foto (opsional)</label><input id="m-img" type="file" name="image" accept="image/*" class="input !py-2 text-sm"><p class="help">JPG/PNG, maksimal 2 MB. Kosongkan bila tidak ingin mengganti foto.</p>
+                <label id="m-rmimg-wrap" class="mt-2 flex items-center gap-2 text-sm" hidden><input type="checkbox" name="remove_image" value="1" id="m-rmimg"> Hapus foto saat ini</label></div>
         </div>
         <div class="flex justify-end gap-2"><button type="button" class="btn btn-line" data-modal-close>Batal</button><button class="btn btn-primary">Simpan menu</button></div>
     </form>
 </x-modal>
+@endpush
+
+@php
+    $oldMenu = collect(old())->only(['name', 'category_id', 'price', 'status', '_return_action', '_return_title', '_method'])->all();
+@endphp
+@push('scripts')
+<script>
+(() => {
+    const dlg = document.getElementById('menu-form');
+    if (!dlg) return;
+    const form = dlg.querySelector('form');
+    const rm = document.getElementById('m-rmimg-wrap');
+
+    // Dipasang setelah handler umum di app.js, jadi form.action & judul sudah terisi.
+    document.addEventListener('click', (e) => {
+        const b = e.target.closest('[data-modal-open="menu-form"]');
+        if (!b) return;
+        form.querySelector('#m-img').value = '';                 // jangan bawa file dari sesi sebelumnya
+        form.querySelector('#m-rmimg').checked = false;
+        rm.hidden = b.dataset.hasImage !== '1';                  // opsi hapus foto hanya saat mengubah menu yang punya foto
+        form.querySelector('[name=_return_action]').value = form.action;
+        form.querySelector('[name=_return_title]').value = dlg.querySelector('[data-modal-title]').textContent;
+    });
+
+    @if ($errors->any() && old('_form') === 'menu')
+    // Validasi gagal: buka lagi dialog dengan isian terakhir supaya admin tidak mengetik ulang.
+    addEventListener('DOMContentLoaded', () => {
+        const old = @json($oldMenu);
+        ['name', 'category_id', 'price', 'status'].forEach((n) => { const el = form.querySelector(`[name="${n}"]`); if (el && old[n] != null) el.value = old[n]; });
+        if (old._return_action) form.action = old._return_action;
+        form.querySelector('[name=_method]').value = old._method || 'POST';
+        form.querySelector('[name=_return_action]').value = form.action;
+        form.querySelector('[name=_return_title]').value = old._return_title || '';
+        if (old._return_title) dlg.querySelector('[data-modal-title]').textContent = old._return_title;
+        rm.hidden = true;
+        openModal(dlg);
+    });
+    @endif
+})();
+</script>
 @endpush
 @endsection
