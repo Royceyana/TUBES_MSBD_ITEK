@@ -16,6 +16,8 @@ class SampleTransactionSeeder extends Seeder
 
     private int $dapurId;
 
+    private bool $canBackdate = false;
+
     /** @var array<int, float> menu_id => harga */
     private array $prices = [];
 
@@ -56,6 +58,44 @@ class SampleTransactionSeeder extends Seeder
         $food = $menus->filter(fn ($m) => in_array($m->category_id, self::FOOD_CATEGORIES))->pluck('id')->all();
         $drink = $menus->reject(fn ($m) => in_array($m->category_id, self::FOOD_CATEGORIES))->pluck('id')->all();
 
+        $count = DB::transaction(function () use ($kasirId, $waitressId, $food, $drink) {
+            // stock_movements append-only (trigger trg_sm_immutable). Agar riwayat pemakaian bisa diberi
+            // tanggal sesuai pesanan, trigger dimatikan sementara selama seeding. Itu hanya bisa dilakukan
+            // pemilik tabel (php artisan db:seed --database=pgsql_admin); tanpa itu tanggalnya = hari ini.
+            $this->canBackdate = $this->unlockStockLedger();
+            $count = $this->generate($kasirId, $waitressId, $food, $drink);
+            if ($this->canBackdate) {
+                $this->lockStockLedger();
+            }
+
+            return $count;
+        });
+
+        $this->command?->info("{$count} transaksi contoh dibuat.");
+    }
+
+    private function unlockStockLedger(): bool
+    {
+        try {
+            // Savepoint: bila ditolak (bukan pemilik tabel), transaksi seeding tidak ikut gagal.
+            DB::transaction(fn () => DB::unprepared('ALTER TABLE stock_movements DISABLE TRIGGER trg_sm_immutable'));
+
+            return true;
+        } catch (\Throwable) {
+            $this->command?->warn('Trigger trg_sm_immutable tidak bisa dimatikan (bukan pemilik tabel); tanggal pemakaian stok = hari ini.');
+
+            return false;
+        }
+    }
+
+    private function lockStockLedger(): void
+    {
+        DB::unprepared('ALTER TABLE stock_movements ENABLE TRIGGER trg_sm_immutable');
+    }
+
+    /** @return int jumlah transaksi yang dibuat */
+    private function generate(int $kasirId, int $waitressId, array $food, array $drink): int
+    {
         mt_srand(13112026);
         $count = 0;
 
@@ -111,7 +151,7 @@ class SampleTransactionSeeder extends Seeder
             $count++;
         }
 
-        $this->command?->info("{$count} transaksi contoh dibuat.");
+        return $count;
     }
 
     /**
@@ -176,7 +216,7 @@ class SampleTransactionSeeder extends Seeder
                         'served_by' => DB::table('users')->where('role', 'waitress')->orderBy('id')->value('id'),
                     ] : []));
 
-                if ($step === 'ready') {
+                if ($step === 'ready' && $this->canBackdate) {
                     // Pemakaian bahan dicatat trigger dengan waktu "sekarang"; selaraskan dengan tanggal pesanan.
                     DB::table('stock_movements')->where('transaction_id', $id)
                         ->update(['created_at' => $o['at']->copy()->addMinutes(20)->format('Y-m-d H:i:s')]);

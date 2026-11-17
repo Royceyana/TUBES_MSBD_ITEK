@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\EnsureRole;
+use App\Http\Middleware\SetDatabaseUser;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -14,6 +15,8 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias(['role' => EnsureRole::class]);
+        // Catat pelaku perubahan di sisi database (audit_logs) untuk setiap request web.
+        $middleware->appendToGroup('web', SetDatabaseUser::class);
         // Pengguna yang belum login diarahkan ke halaman masuk.
         $middleware->redirectGuestsTo(fn () => route('login'));
     })

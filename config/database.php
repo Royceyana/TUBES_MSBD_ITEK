@@ -99,6 +99,21 @@ return [
             'sslmode' => env('DB_SSLMODE', 'prefer'),
         ],
 
+        // Akun pemilik database (DDL, migrasi, seeder): php artisan migrate --database=pgsql_admin
+        'pgsql_admin' => [
+            'driver' => 'pgsql',
+            'host' => env('DB_HOST', '127.0.0.1'),
+            'port' => env('DB_PORT', '5432'),
+            'database' => env('DB_DATABASE', 'laravel'),
+            'username' => env('DB_ADMIN_USERNAME', 'postgres'),
+            'password' => env('DB_ADMIN_PASSWORD', ''),
+            'charset' => env('DB_CHARSET', 'utf8'),
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'search_path' => 'public',
+            'sslmode' => env('DB_SSLMODE', 'prefer'),
+        ],
+
         'sqlsrv' => [
             'driver' => 'sqlsrv',
             'url' => env('DB_URL'),
@@ -126,6 +141,23 @@ return [
     | the migrations on disk haven't actually been run on the database.
     |
     */
+
+    /*
+    |--------------------------------------------------------------------------
+    | Mode SET ROLE (opsional)
+    |--------------------------------------------------------------------------
+    | Bila true, middleware SetDatabaseUser menjalankan SET ROLE sesuai peran pengguna yang login,
+    | sehingga database memakai hak akses peran itu. Role-nya dibuat MANUAL lewat
+    | database/sql/2026_11_17_roles.sql (bagian 9); Laravel tidak membuat role apa pun.
+    */
+    'set_role' => (bool) env('DB_SET_ROLE', false),
+    'web_roles' => [
+        'admin' => 'kafe_web_admin',
+        'kasir' => 'kafe_web_kasir',
+        'dapur' => 'kafe_web_dapur',
+        'waitress' => 'kafe_web_waitress',
+        'owner' => 'kafe_web_owner',
+    ],
 
     'migrations' => [
         'table' => 'migrations',
