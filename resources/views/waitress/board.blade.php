@@ -14,14 +14,14 @@
             <article class="border-b border-sand-2 py-6">
                 <div class="flex items-baseline justify-between gap-3">
                     <h3 class="display text-2xl">{{ $t->place_label }}</h3>
-                    <p class="text-sm font-bold text-muted">{{ $t->number }} · {{ $t->transaction_date?->format('H:i') }}</p>
+                    <p class="text-sm font-bold text-muted">{{ $t->number }} · {{ $t->time }}</p>
                 </div>
                 <ul class="mt-3 space-y-1.5 text-lg">
-                    @foreach ($t->details as $d)
-                        <li class="flex gap-3"><span class="num w-9 font-extrabold text-clay">{{ $d->qty }}×</span><span>{{ $d->menu->name ?? 'Menu dihapus' }}</span></li>
+                    @foreach ($t->lines as $d)
+                        <li class="flex gap-3"><span class="num w-9 font-extrabold text-clay">{{ $d->qty }}×</span><span>{{ $d->menu }}</span></li>
                     @endforeach
                 </ul>
-                <form method="POST" action="{{ route('waitress.serve', $t) }}" class="mt-5">@csrf
+                <form method="POST" action="{{ route('waitress.serve', $t->id) }}" class="mt-5">@csrf
                     <button class="btn btn-primary btn-lg w-full sm:w-auto">Sudah diantar</button>
                 </form>
             </article>
@@ -48,7 +48,7 @@
             </div>
             <ul class="mt-2 divide-y divide-sand">
                 @foreach ($served as $t)
-                    <li class="py-3"><span class="num font-bold">{{ $t->number }}</span> <span class="muted">· {{ $t->place_label }}@if ($t->served_at) · {{ $t->served_at->format('H:i') }}@endif</span></li>
+                    <li class="py-3"><span class="num font-bold">{{ $t->number }}</span> <span class="muted">· {{ $t->place_label }}@if ($t->served_at) · {{ $t->served_time }}@endif</span></li>
                 @endforeach
             </ul>
         @endif

@@ -3,9 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Models\Transaction;
+use App\Services\OrderViews;
+use App\Support\DbMessage;
 use App\Services\StockService;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
@@ -16,18 +20,20 @@ use Illuminate\View\View;
  */
 class DapurController extends Controller
 {
-    public function __construct(private StockService $stock)
+    public function __construct(private StockService $stock, private OrderViews $orders)
     {
     }
 
     public function board(): View
     {
-        $base = Transaction::with('details.menu')
-            ->where('status', Transaction::STATUS_PAID);
+        // Antrian dibaca dari view v_order_queue (pesanan lunas yang belum diantar) + v_order_lines (item).
+        $open = $this->orders->openOrders();
 
-        $queue = (clone $base)->whereIn('order_status', ['waiting', 'preparing'])->orderBy('id')->get();
-        $done = (clone $base)->where('order_status', 'ready')->whereDate('transaction_date', today())
-            ->latest('id')->take(8)->get();
+        $queue = $this->orders->withLines($open->whereIn('order_status', ['waiting', 'preparing'])->values());
+        $done = $this->orders->withLines(
+            $open->where('order_status', 'ready')->filter(fn ($t) => Carbon::parse($t->tanggal)->isToday())
+                ->sortByDesc('id')->take(8)->values()
+        );
 
         // [transaction_id => bahan yang kurang]; kosong berarti stok cukup.
         $shortages = $this->stock->shortages($queue->pluck('id')->all());
@@ -56,9 +62,12 @@ class DapurController extends Controller
             }
         }
 
-        $this->stock->asUser(auth()->id(), fn () => Transaction::where('id', $transaction->id)
-            ->where('order_status', $transaction->order_status)
-            ->update(['order_status' => $next]));
+        try {
+            // Urutan status, pengecekan peran, dan penguncian baris ditangani prosedur sp_set_order_status (savepoint agar error tidak merusak transaksi luar).
+            DB::transaction(fn () => DB::statement('CALL sp_set_order_status(?::integer, ?::text, ?::integer)', [$transaction->id, $next, auth()->id()]));
+        } catch (QueryException $e) {
+            throw ValidationException::withMessages(['order' => DbMessage::from($e, 'Status pesanan tidak bisa diubah.')]);
+        }
 
         return back()->with('success', "{$transaction->number}: ".Transaction::ORDER_LABEL[$next].'.');
     }
@@ -72,7 +81,7 @@ class DapurController extends Controller
         return view('dapur.stock', compact('ingredients', 'lowStock'));
     }
 
-    /** Mendata bahan di dapur: samakan stok sistem dengan stok fisik lewat fn_stock_adjust_to(). */
+    /** Mendata bahan di dapur: samakan stok sistem dengan stok fisik lewat prosedur sp_stock_opname. */
     public function opname(Request $request): RedirectResponse
     {
         $data = $request->validate([
@@ -81,9 +90,9 @@ class DapurController extends Controller
             'notes' => ['nullable', 'string', 'max:255'],
         ]);
 
-        $delta = DB::selectOne('select public.fn_stock_adjust_to(?, ?, ?, ?) as delta', [
+        $delta = DB::selectOne('CALL sp_stock_opname(?::integer, ?::numeric, ?::integer, ?::text, NULL::numeric)', [
             $data['ingredient_id'], $data['qty'], auth()->id(), $data['notes'] ?: 'Pendataan stok dapur',
-        ])->delta;
+        ])->p_delta;
 
         return back()->with('success', (float) $delta === 0.0 ? 'Stok sudah sesuai, tidak ada selisih.' : 'Stok disesuaikan.');
     }
@@ -91,17 +100,15 @@ class DapurController extends Controller
     /** Resep per menu (hanya lihat): bahan dan takaran untuk 1 porsi. */
     public function recipes(): View
     {
-        $menus = DB::table('menus as m')
-            ->leftJoin('categories as c', 'c.id', '=', 'm.category_id')
-            ->where('m.status', 'active')
-            ->orderBy('c.name')->orderBy('m.name')
-            ->get(['m.id', 'm.name', 'c.name as category']);
+        // Resep dibaca dari view v_menu_recipe.
+        $rows = DB::table('v_menu_recipe')->where('menu_status', 'active')
+            ->orderBy('kategori')->orderBy('menu')->orderBy('bahan')->get();
 
-        $lines = DB::table('menu_ingredients as mi')
-            ->join('ingredients as i', 'i.id', '=', 'mi.ingredient_id')
-            ->orderBy('i.name')
-            ->get(['mi.menu_id', 'i.name', 'i.unit', 'mi.qty_needed'])
-            ->groupBy('menu_id');
+        $menus = $rows->unique('menu_id')->map(fn ($r) => (object) ['id' => $r->menu_id, 'name' => $r->menu, 'category' => $r->kategori])->values();
+
+        $lines = $rows->whereNotNull('ingredient_id')->map(fn ($r) => (object) [
+            'menu_id' => $r->menu_id, 'name' => $r->bahan, 'unit' => $r->satuan, 'qty_needed' => $r->qty_needed,
+        ])->groupBy('menu_id');
 
         return view('dapur.recipes', compact('menus', 'lines'));
     }

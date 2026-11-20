@@ -12,19 +12,26 @@ use Illuminate\View\View;
 
 class StockController extends Controller
 {
+    /** Riwayat pergerakan stok terbaru, dibaca dari view v_stock_history. */
     public static function recentMovements(int $limit = 100)
     {
-        return DB::table('stock_movements as s')
-            ->join('ingredients as i', 'i.id', '=', 's.ingredient_id')
-            ->leftJoin('users as u', 'u.id', '=', 's.user_id')
-            ->orderByDesc('s.id')->limit($limit)
-            ->get(['s.*', 'i.name as ingredient', 'i.unit', 'u.name as user'])
+        return DB::table('v_stock_history')
+            ->orderByDesc('id')->limit($limit)
+            ->get()
             ->map(function ($m) {
-                $m->time = \Illuminate\Support\Carbon::parse($m->created_at)->isToday()
-                    ? \Illuminate\Support\Carbon::parse($m->created_at)->format('H:i')
-                    : \Illuminate\Support\Carbon::parse($m->created_at)->translatedFormat('d M, H:i');
+                $at = \Illuminate\Support\Carbon::parse($m->waktu);
 
-                return $m;
+                return (object) [
+                    'id' => $m->id,
+                    'ingredient' => $m->bahan,
+                    'unit' => $m->satuan,
+                    'type' => $m->jenis,
+                    'qty' => $m->qty,
+                    'notes' => $m->catatan,
+                    'user' => $m->petugas,
+                    'created_at' => $m->waktu,
+                    'time' => $at->isToday() ? $at->format('H:i') : $at->translatedFormat('d M, H:i'),
+                ];
             });
     }
 
@@ -37,7 +44,7 @@ class StockController extends Controller
         return view('admin.stock', compact('ingredients', 'lowStock', 'movements'));
     }
 
-    /** Stok masuk. stock_qty bertambah lewat trigger trg_stock_movement_apply. */
+    /** Stok masuk lewat prosedur sp_restock; stock_qty bertambah lewat trigger trg_stock_movement_apply. */
     public function store(Request $request): RedirectResponse
     {
         $data = $request->validate([
@@ -46,12 +53,14 @@ class StockController extends Controller
             'notes' => ['nullable', 'string', 'max:255'],
         ]);
 
-        StockMovement::create($data + ['type' => 'in', 'user_id' => Auth::id()]);
+        DB::statement('CALL sp_restock(?::integer, ?::numeric, ?::integer, ?::text)', [
+            $data['ingredient_id'], $data['qty'], Auth::id(), $data['notes'] ?? 'Restock',
+        ]);
 
         return back()->with('success', 'Stok masuk tercatat.');
     }
 
-    /** Stok opname: samakan stok sistem dengan stok fisik lewat fn_stock_adjust_to(). */
+    /** Stok opname: samakan stok sistem dengan stok fisik lewat prosedur sp_stock_opname (memanggil fn_stock_adjust_to). */
     public function opname(Request $request): RedirectResponse
     {
         $data = $request->validate([
@@ -60,9 +69,9 @@ class StockController extends Controller
             'notes' => ['nullable', 'string', 'max:255'],
         ]);
 
-        $delta = DB::selectOne('select public.fn_stock_adjust_to(?, ?, ?, ?) as delta', [
+        $delta = DB::selectOne('CALL sp_stock_opname(?::integer, ?::numeric, ?::integer, ?::text, NULL::numeric)', [
             $data['ingredient_id'], $data['qty'], Auth::id(), $data['notes'] ?: 'Stok opname',
-        ])->delta;
+        ])->p_delta;
 
         return back()->with('success', (float) $delta === 0.0 ? 'Stok sudah sesuai, tidak ada selisih.' : 'Stok disesuaikan.');
     }

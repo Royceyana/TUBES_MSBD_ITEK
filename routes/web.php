@@ -46,6 +46,8 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::get('stock', [Admin\StockController::class, 'index'])->name('stock');
     Route::post('stock/in', [Admin\StockController::class, 'store'])->name('stock.in');
     Route::post('stock/opname', [Admin\StockController::class, 'opname'])->name('stock.opname');
+
+    Route::get('audit', [Admin\AuditController::class, 'index'])->name('audit');
 });
 
 // ---------- Kasir ----------

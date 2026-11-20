@@ -28,11 +28,11 @@
                 <article class="border-b border-sand-2 py-6">
                     <div class="flex items-baseline justify-between gap-3">
                         <h3 class="display text-2xl">{{ $t->number }}</h3>
-                        <p class="text-sm font-bold text-muted">{{ $t->place_label }} · {{ $t->transaction_date?->format('H:i') }}</p>
+                        <p class="text-sm font-bold text-muted">{{ $t->place_label }} · {{ $t->time }}</p>
                     </div>
                     <ul class="mt-3 space-y-1.5 text-lg">
-                        @foreach ($t->details as $d)
-                            <li class="flex gap-3"><span class="num w-9 font-extrabold text-clay">{{ $d->qty }}×</span><span>{{ $d->menu->name ?? 'Menu dihapus' }}</span></li>
+                        @foreach ($t->lines as $d)
+                            <li class="flex gap-3"><span class="num w-9 font-extrabold text-clay">{{ $d->qty }}×</span><span>{{ $d->menu }}</span></li>
                         @endforeach
                     </ul>
                     @php $short = $shortages[$t->id] ?? []; $warnReady = $status === 'preparing' && $short; @endphp
@@ -47,7 +47,7 @@
                             <a href="{{ route('dapur.stock') }}" class="link mt-2 inline-block text-sm font-bold">Cek stok bahan</a>
                         </div>
                     @endif
-                    <form method="POST" action="{{ route('dapur.advance', $t) }}" class="mt-5"
+                    <form method="POST" action="{{ route('dapur.advance', $t->id) }}" class="mt-5"
                           @if ($warnReady) data-confirm="Stok {{ collect($short)->pluck('name')->join(', ') }} tidak cukup. Menandai siap akan memotong stok sehingga bisa menjadi minus. Lanjutkan?" data-confirm-yes="Ya, tandai siap" @endif>@csrf
                         @if ($warnReady)<input type="hidden" name="confirm_shortage" value="1">@endif
                         <button class="btn {{ $status === 'waiting' ? 'btn-line' : 'btn-primary' }} btn-lg w-full sm:w-auto">{{ $action }}</button>
@@ -65,7 +65,7 @@
         <h2 id="g-done" class="script text-4xl">Siap, menunggu diantar</h2>
         <ul class="mt-3 divide-y divide-sand">
             @foreach ($done as $t)
-                <li class="flex flex-wrap gap-x-6 gap-y-1 py-3"><span class="num font-bold">{{ $t->number }}</span><span class="muted">{{ $t->place_label }}</span><span class="text-muted">{{ $t->details->map(fn ($d) => $d->qty.'× '.($d->menu->name ?? '-'))->implode(', ') }}</span></li>
+                <li class="flex flex-wrap gap-x-6 gap-y-1 py-3"><span class="num font-bold">{{ $t->number }}</span><span class="muted">{{ $t->place_label }}</span><span class="text-muted">{{ $t->lines->map(fn ($d) => $d->qty.'× '.$d->menu)->implode(', ') }}</span></li>
             @endforeach
         </ul>
     </section>

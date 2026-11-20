@@ -195,6 +195,13 @@ GRANT SELECT ON transactions, transaction_details, menus, categories, menu_ingre
                 v_ingredient_stock, v_menu_availability TO kafe_web_dapur;
 GRANT UPDATE (order_status) ON transactions TO kafe_web_dapur;
 GRANT EXECUTE ON FUNCTION fn_stock_adjust_to(integer, numeric, integer, text) TO kafe_web_dapur, kafe_web_admin;
+-- Prosedur dan function yang dipanggil aplikasi (CALL / SELECT) lewat role konteks.
+GRANT EXECUTE ON PROCEDURE sp_set_order_status(integer, text, integer)            TO kafe_web_dapur, kafe_web_waitress;
+GRANT EXECUTE ON PROCEDURE sp_stock_opname(integer, numeric, integer, text, numeric) TO kafe_web_dapur, kafe_web_admin;
+GRANT EXECUTE ON PROCEDURE sp_restock(integer, numeric, integer, text)            TO kafe_web_admin;
+GRANT EXECUTE ON PROCEDURE sp_cancel_order(integer, integer, text)                TO kafe_web_kasir;
+GRANT EXECUTE ON FUNCTION  fn_menu_portions(integer)                              TO kafe_web_admin;
+GRANT EXECUTE ON FUNCTION  fn_sales_report(date, date)                            TO kafe_web_owner;
 
 -- Waitress (WaitressController)
 GRANT SELECT ON transactions, transaction_details, menus TO kafe_web_waitress;
@@ -213,6 +220,22 @@ GRANT SELECT                         ON transactions, transaction_details TO kaf
 GRANT SELECT, INSERT                 ON stock_movements TO kafe_web_admin;
 GRANT SELECT ON v_ingredient_stock, v_menu_hpp, v_menu_availability, v_stock_history, v_sales_daily,
                 v_sales_by_menu, v_transaction_summary, v_user_public, v_audit_log TO kafe_web_admin;
+
+-- View tambahan (2026_11_18_app_views.sql): tiap halaman membaca data lewat view, bukan tabel langsung.
+GRANT SELECT ON v_order_lines, v_transaction_history, v_sales_by_menu_daily, v_stock_flow_daily,
+                v_menu_recipe, v_admin_summary TO kafe_app;                                   -- mode tanpa SET ROLE
+GRANT SELECT ON v_transaction_history                                  TO kafe_web_kasir;
+GRANT SELECT ON v_order_queue, v_order_lines, v_menu_recipe            TO kafe_web_dapur;
+GRANT SELECT ON v_order_queue, v_order_lines, v_transaction_summary    TO kafe_web_waitress;
+GRANT SELECT ON v_sales_by_menu_daily, v_stock_flow_daily              TO kafe_web_owner;
+GRANT SELECT ON v_admin_summary                                        TO kafe_web_admin;
+GRANT SELECT ON v_transaction_history                                  TO kafe_role_kasir;
+GRANT SELECT ON v_order_lines, v_menu_recipe                           TO kafe_role_dapur;
+GRANT SELECT ON v_order_lines                                          TO kafe_role_waitress;
+GRANT SELECT ON v_sales_by_menu_daily, v_stock_flow_daily              TO kafe_role_owner;
+GRANT SELECT ON v_sales_by_menu_daily, v_stock_flow_daily, v_admin_summary,
+                v_transaction_history, v_order_lines, v_menu_recipe    TO kafe_role_admin;
+GRANT SELECT ON v_sales_by_menu_daily, v_stock_flow_daily              TO kafe_report;
 
 -- Sequence untuk INSERT (id otomatis).
 DO $$

@@ -26,16 +26,16 @@
             @foreach ($orders as $t)
                 <tr>
                     <td class="num font-bold">{{ $t->number }}</td>
-                    <td class="num">{{ ($t->served_at ?? $t->transaction_date)?->format('H:i') }}</td>
+                    <td class="num">{{ $t->served_time }}</td>
                     <td>{{ $t->place_label }}</td>
                     <td class="text-muted">
                         <ul class="space-y-0.5">
-                            @foreach ($t->details as $d)
-                                <li><span class="num font-bold text-clay">{{ $d->qty }}×</span> {{ $d->menu->name ?? 'Menu dihapus' }}</li>
+                            @foreach ($t->lines as $d)
+                                <li><span class="num font-bold text-clay">{{ $d->qty }}×</span> {{ $d->menu }}</li>
                             @endforeach
                         </ul>
                     </td>
-                    <td>{{ $t->server->name ?? '-' }}</td>
+                    <td>{{ $t->pelayan ?? '-' }}</td>
                     <td><span class="status status-ok">Sudah diantar</span></td>
                 </tr>
             @endforeach

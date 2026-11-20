@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -20,7 +21,9 @@ class UserController extends Controller
 {
     public function index(): View
     {
-        $users = User::orderByRaw("array_position(array['admin','owner','kasir','waitress','dapur'], role::text)")
+        // Daftar akun dibaca dari view v_user_public (tanpa kolom kata sandi).
+        $users = DB::table('v_user_public')
+            ->orderByRaw("array_position(array['admin','owner','kasir','waitress','dapur'], role::text)")
             ->orderBy('name')->get();
 
         return view('admin.users', compact('users'));

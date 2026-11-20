@@ -7,6 +7,7 @@ use App\Services\StockService;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -22,26 +23,26 @@ class PosController extends Controller
     {
     }
 
-    /** Ringkasan shift: transaksi lunas hari ini milik kasir yang login. */
+    /** Ringkasan shift: transaksi lunas hari ini milik kasir yang login (view v_transaction_history). */
     public function dashboard(): View
     {
-        $paidToday = Transaction::query()
+        $paidToday = fn () => DB::table('v_transaction_history')
             ->where('status', Transaction::STATUS_PAID)
-            ->whereDate('transaction_date', today())
+            ->whereDate('tanggal', today())
             ->where('user_id', Auth::id());
 
         $stats = [
-            'count' => (clone $paidToday)->count(),
-            'revenue' => (int) (clone $paidToday)->sum('total'),
-            'cash' => (int) (clone $paidToday)->where('payment_method', 'cash')->sum('total'),
-            'cashless' => (int) (clone $paidToday)->where('payment_method', 'qris')->sum('total'),
+            'count' => $paidToday()->count(),
+            'revenue' => (int) $paidToday()->sum('total'),
+            'cash' => (int) $paidToday()->where('payment_method', 'cash')->sum('total'),
+            'cashless' => (int) $paidToday()->where('payment_method', 'qris')->sum('total'),
         ];
 
-        $recent = (clone $paidToday)->with('details.menu')->latest('transaction_date')->latest('id')->take(5)->get()
+        $recent = $paidToday()->orderByDesc('tanggal')->orderByDesc('id')->limit(5)->get()
             ->map(fn ($t) => $this->row($t));
 
-        $pending = Transaction::where('status', Transaction::STATUS_PENDING)
-            ->whereDate('transaction_date', today())->count();
+        $pending = DB::table('v_transaction_history')->where('status', Transaction::STATUS_PENDING)
+            ->whereDate('tanggal', today())->count();
 
         return view('kasir.dashboard', compact('stats', 'recent', 'pending'));
     }
@@ -50,25 +51,25 @@ class PosController extends Controller
     {
         $date = $request->validate(['date' => ['nullable', 'date_format:Y-m-d']])['date'] ?? today()->toDateString();
 
-        $transactions = Transaction::query()
-            ->with('details.menu')
-            ->whereDate('transaction_date', $date)
-            ->latest('id')
+        $transactions = DB::table('v_transaction_history')
+            ->whereDate('tanggal', $date)
+            ->orderByDesc('id')
             ->get()
             ->map(fn ($t) => $this->row($t));
 
         return view('kasir.history', compact('transactions', 'date'));
     }
 
-    private function row(Transaction $t): object
+    /** Baris view v_transaction_history -> bentuk yang dipakai tampilan kasir. */
+    private function row(object $t): object
     {
         return (object) [
             'id' => $t->id,
-            'number' => $t->number,
-            'time' => $t->transaction_date?->format('H:i'),
+            'number' => $t->nomor,
+            'time' => Carbon::parse($t->tanggal)->format('H:i'),
             'place' => $t->order_type === Transaction::TYPE_TAKEAWAY ? 'Bawa pulang' : $t->table_no,
-            'items' => $t->details->map(fn ($d) => $d->qty.'× '.($d->menu->name ?? 'Menu dihapus'))->implode(', '),
-            'method' => $t->method_label,
+            'items' => $t->item,
+            'method' => Transaction::METHOD_LABEL[$t->payment_method] ?? '-',
             'total' => (int) $t->total,
             'status' => $t->status,
             'order_status' => $t->order_status,
@@ -212,22 +213,17 @@ class PosController extends Controller
             ->with('paid', $paid);
     }
 
-    /** Batalkan: boleh selama belum "siap" di dapur / diantar. Aturan akhir dijaga trigger fn_guard_cancel. */
+    /** Batalkan lewat prosedur sp_cancel_order; aturan akhir (belum siap/diantar) dijaga trigger fn_guard_cancel. */
     public function void(Transaction $transaction): RedirectResponse
     {
         try {
-            // Dibungkus transaksi (savepoint) agar error trigger tidak merusak transaksi luar.
-            $updated = DB::transaction(fn () => Transaction::where('id', $transaction->id)
-                ->whereIn('status', [Transaction::STATUS_PENDING, Transaction::STATUS_PAID])
-                ->update(['status' => Transaction::STATUS_VOID]));
+            DB::transaction(fn () => DB::statement('CALL sp_cancel_order(?::integer, ?::integer, ?::text)', [$transaction->id, Auth::id(), 'Dibatalkan kasir']));
         } catch (QueryException $e) {
             throw ValidationException::withMessages([
-                'order' => 'Pesanan sudah dikonfirmasi siap oleh dapur atau sudah diantar, tidak dapat dibatalkan.',
+                'order' => str_contains($e->getMessage(), 'sudah dibatalkan')
+                    ? 'Pesanan ini sudah dibatalkan.'
+                    : 'Pesanan sudah dikonfirmasi siap oleh dapur atau sudah diantar, tidak dapat dibatalkan.',
             ]);
-        }
-
-        if (! $updated) {
-            throw ValidationException::withMessages(['order' => 'Pesanan ini sudah dibatalkan.']);
         }
 
         return redirect()->route('kasir.pos')->with('success', "Pesanan {$transaction->number} dibatalkan.");

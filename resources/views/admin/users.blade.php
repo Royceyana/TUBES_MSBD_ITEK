@@ -28,7 +28,7 @@
                     <td>{{ $roles[$u->role] ?? $u->role }}</td>
                     <td><span class="status {{ $u->status === 'active' ? 'status-ok' : 'status-mute' }}">{{ $u->status === 'active' ? 'Aktif' : 'Nonaktif' }}</span></td>
                     <td class="r">
-                        <button type="button" class="btn btn-line btn-sm" aria-label="Ubah {{ $u->name }}" data-modal-open="user-form" data-title="Ubah pengguna" data-action="{{ route('admin.users.update', $u) }}" data-method="PUT"
+                        <button type="button" class="btn btn-line btn-sm" aria-label="Ubah {{ $u->name }}" data-modal-open="user-form" data-title="Ubah pengguna" data-action="{{ route('admin.users.update', $u->id) }}" data-method="PUT"
                             data-fill-name="{{ $u->name }}" data-fill-email="{{ $u->email }}" data-fill-role="{{ $u->role }}" data-fill-status="{{ $u->status }}" data-fill-password="">Ubah</button>
                     </td>
                 </tr>

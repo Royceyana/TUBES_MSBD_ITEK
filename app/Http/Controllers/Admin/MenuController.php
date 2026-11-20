@@ -23,7 +23,7 @@ class MenuController extends Controller
             ->leftJoin('categories as c', 'c.id', '=', 'm.category_id')
             ->leftJoin('v_menu_hpp as h', 'h.menu_id', '=', 'm.id')
             ->orderBy('c.id')->orderBy('m.name')
-            ->get(['m.*', 'c.name as category', 'h.jumlah_bahan as recipe_count', 'h.hpp', 'h.margin_persen']);
+            ->get(['m.*', 'c.name as category', 'h.jumlah_bahan as recipe_count', 'h.hpp', 'h.margin_persen', DB::raw('fn_menu_portions(m.id) as portions')]);
 
         return view('admin.menus', compact('categories', 'menus'));
     }

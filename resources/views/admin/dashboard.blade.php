@@ -21,6 +21,22 @@
     </section>
 @endif
 
+@if ($topMenus->isNotEmpty())
+<section class="mt-14" aria-labelledby="top-h">
+    <h2 id="top-h" class="script text-4xl">Menu terlaris</h2>
+    <div class="mt-4 overflow-x-auto">
+        <table class="tbl min-w-[24rem]">
+            <thead><tr><th>Menu</th><th class="r">Terjual</th><th class="r">Pendapatan</th></tr></thead>
+            <tbody>
+                @foreach ($topMenus as $m)
+                    <tr><td class="font-semibold">{{ $m->name }}</td><td class="num r">{{ $m->qty_terjual }}</td><td class="num r">Rp {{ number_format($m->pendapatan, 0, ',', '.') }}</td></tr>
+                @endforeach
+            </tbody>
+        </table>
+    </div>
+</section>
+@endif
+
 <section class="mt-14" aria-labelledby="mv-h">
     <div class="flex items-end justify-between gap-3"><h2 id="mv-h" class="script text-4xl">Pergerakan stok terbaru</h2><a href="{{ route('admin.stock') }}" class="link text-sm">Semua riwayat</a></div>
     @if ($movements->isEmpty())

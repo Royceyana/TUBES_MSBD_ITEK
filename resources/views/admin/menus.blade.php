@@ -23,7 +23,7 @@
 
     <div class="mt-8 overflow-x-auto">
         <table class="tbl min-w-[52rem]">
-            <thead><tr><th>Menu</th><th>Kategori</th><th class="r">Harga</th><th class="r">HPP</th><th>Resep</th><th>Status</th><th class="r">Aksi</th></tr></thead>
+            <thead><tr><th>Menu</th><th>Kategori</th><th class="r">Harga</th><th class="r">HPP</th><th>Resep</th><th class="r">Sisa porsi</th><th>Status</th><th class="r">Aksi</th></tr></thead>
             <tbody id="menu-rows">
                 @foreach ($menus as $m)
                     <tr data-cat="{{ $m->category_id }}">
@@ -37,6 +37,7 @@
                         <td class="num r font-bold">{{ number_format($m->price, 0, ',', '.') }}</td>
                         <td class="num r text-muted">{{ $m->recipe_count ? number_format($m->hpp, 0, ',', '.') : '-' }}</td>
                         <td>@if ($m->recipe_count)<span class="text-muted">{{ $m->recipe_count }} bahan</span>@else<span class="status status-bad">Belum ada resep</span>@endif</td>
+                        <td class="num r">{{ $m->portions === null ? '-' : $m->portions }}</td>
                         <td><span class="status {{ $m->status === 'active' ? 'status-ok' : 'status-mute' }}">{{ $m->status === 'active' ? 'Aktif' : 'Nonaktif' }}</span></td>
                         <td class="r">
                             <div class="inline-flex gap-2">
