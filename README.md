@@ -196,20 +196,6 @@ Test berjalan di database `kafe_kaleng` yang sama (lihat `phpunit.xml`). Setiap 
 dibatalkan, jadi data tidak berubah, tetapi nomor urut id (sequence) ikut maju. Ambil cadangan dulu bila data
 tersebut penting: `pg_dump -U postgres -d kafe_kaleng -f cadangan.sql`.
 
-### Masalah umum
-
-| Pesan error | Penyebab dan solusi |
-|---|---|
-| `could not find driver` | Ekstensi `pdo_pgsql` belum aktif di `php.ini` (lihat langkah 0). |
-| `password authentication failed` | `DB_USERNAME` atau `DB_PASSWORD` di `.env` salah. Jalankan `php artisan config:clear`. |
-| `database "kafe_kaleng" does not exist` | Dump belum di-restore, atau `DB_DATABASE` salah. |
-| `relation "..." does not exist` | Restore tidak selesai, atau `DB_DATABASE` menunjuk ke database lain. Ulangi langkah 2. |
-| `Vite manifest not found` | Jalankan `npm run dev` (atau `npm run build`). |
-| `No application encryption key has been generated` | Jalankan `php artisan key:generate`. |
-| `role "kafe_web_..." does not exist` | `DB_SET_ROLE` bernilai `true`. Ubah ke `false`. |
-| `419 Page Expired` saat login | Hapus cookie situs, lalu `php artisan config:clear` dan muat ulang halaman. |
-| Foto menu tidak tampil | Jalankan `php artisan storage:link`. |
-
 
 ## Struktur Folder
 
