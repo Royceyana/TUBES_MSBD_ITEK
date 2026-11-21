@@ -1,7 +1,14 @@
 <?php
 
 use Illuminate\Support\Str;
-use Pdo\Mysql;
+
+// Konstanta SSL MySQL (hanya dibaca bila pdo_mysql aktif; aplikasi ini memakai PostgreSQL).
+// Pdo\Mysql baru ada di PHP 8.4+, PHP 8.3 memakai PDO::MYSQL_ATTR_SSL_CA. Tanpa pengecekan ini,
+// config gagal dimuat (class/konstanta tidak ditemukan) dan semua perintah artisan ikut error.
+$mysqlSslCa = null;
+if (extension_loaded('pdo_mysql')) {
+    $mysqlSslCa = PHP_VERSION_ID >= 80400 ? \Pdo\Mysql::ATTR_SSL_CA : \PDO::MYSQL_ATTR_SSL_CA;
+}
 
 return [
 
@@ -60,7 +67,7 @@ return [
             'strict' => true,
             'engine' => null,
             'options' => extension_loaded('pdo_mysql') ? array_filter([
-                Mysql::ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
+                $mysqlSslCa => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],
         ],
 
@@ -80,7 +87,7 @@ return [
             'strict' => true,
             'engine' => null,
             'options' => extension_loaded('pdo_mysql') ? array_filter([
-                Mysql::ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
+                $mysqlSslCa => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],
         ],
 
