@@ -4,7 +4,7 @@
 
 @section('content')
 <x-page-head title="Laporan stok" script="masuk & keluar">
-    <a href="{{ route('owner.stock', ['from' => $from, 'to' => $to, 'export' => 'xlsx']) }}" class="btn btn-line btn-sm">Cetak</a>
+    <a href="{{ route('owner.stock', ['from' => $from, 'to' => $to, 'export' => 'preview']) }}" class="btn btn-line btn-sm">Cetak</a>
 </x-page-head>
 @include('owner._range', ['action' => route('owner.stock')])
 

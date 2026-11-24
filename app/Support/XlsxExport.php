@@ -91,6 +91,84 @@ class XlsxExport
         return $s;
     }
 
+    /**
+     * Data pratinjau (HTML) dengan isi yang sama persis dengan berkas .xlsx.
+     *
+     * @return array{name: string, cols: int, letters: array<int, string>, widths: array<int, int>, rows: array<int, array<int, array{t: string, c: string, span: int}|null>>}
+     */
+    public function preview(): array
+    {
+        $cols = max([1, ...array_keys($this->widths), ...array_map(fn ($r) => max(array_keys($r)), $this->rows)]);
+        $bare = [self::S_DEFAULT, self::S_TITLE, self::S_NOTE, self::S_LABEL]; // gaya tanpa border
+
+        $out = [];
+        for ($r = 1; $r < $this->cursor; $r++) {
+            $line = [];
+            $cells = $this->rows[$r] ?? [];
+
+            // Baris yang hanya berisi satu teks di kolom A: lebarkan sepanjang tabel (seperti teks meluap di Excel).
+            $rest = array_filter(array_slice($cells, 1, null, true), fn ($c) => $c[0] !== null && $c[0] !== '');
+            if (isset($cells[1]) && $cells[1][0] !== null && $cells[1][0] !== '' && ! $rest) {
+                $line[] = ['t' => $this->previewText($cells[1][0], $cells[1][1]), 'c' => $this->previewClass($cells[1][1], $bare), 'span' => $cols];
+                $out[$r] = $line;
+
+                continue;
+            }
+
+            for ($c = 1; $c <= $cols; $c++) {
+                $line[] = isset($cells[$c])
+                    ? ['t' => $this->previewText($cells[$c][0], $cells[$c][1]), 'c' => $this->previewClass($cells[$c][1], $bare), 'span' => 1]
+                    : null;
+            }
+            $out[$r] = $line;
+        }
+
+        return [
+            'name' => $this->sheetName,
+            'cols' => $cols,
+            'letters' => array_map(fn ($c) => self::col($c), range(1, $cols)),
+            'widths' => array_map(fn ($c) => (int) round(($this->widths[$c] ?? 10) * 7 + 5), range(1, $cols)),
+            'rows' => $out,
+        ];
+    }
+
+    private function previewClass(int $style, array $bare): string
+    {
+        $k = match ($style) {
+            self::S_TITLE => 'title',
+            self::S_NOTE => 'note',
+            self::S_LABEL => 'label',
+            self::S_HEAD => 'head',
+            self::S_TOTAL_TEXT, self::S_TOTAL_INT, self::S_TOTAL_PCT => 'total',
+            self::S_CENTER => 'center',
+            default => 'text',
+        };
+        $num = in_array($style, [self::S_INT, self::S_DEC, self::S_PCT, self::S_TOTAL_INT, self::S_TOTAL_PCT], true) ? ' num' : '';
+
+        return $k.$num.(in_array($style, $bare, true) ? '' : ' b');
+    }
+
+    /** Teks sel sebagaimana tampil di Excel (format angka Indonesia). */
+    private function previewText(mixed $v, int $style): string
+    {
+        if (is_array($v)) {
+            $v = $v['v'] ?? null; // rumus: tampilkan nilai hasil
+        }
+        if ($v === null || $v === '') {
+            return '';
+        }
+        if (! is_int($v) && ! is_float($v)) {
+            return (string) $v;
+        }
+
+        return match ($style) {
+            self::S_DEC => number_format($v, 2, ',', '.'),
+            self::S_PCT, self::S_TOTAL_PCT => number_format($v * 100, 1, ',', '.').'%',
+            self::S_INT, self::S_TOTAL_INT => number_format($v, 0, ',', '.'),
+            default => (string) $v,
+        };
+    }
+
     /** Tulis ke berkas sementara lalu kembalikan path-nya. */
     public function save(): string
     {
