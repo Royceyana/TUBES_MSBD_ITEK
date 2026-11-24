@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\XlsxExport;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 /**
  * Laporan pemilik (baca-saja). Semua angka dibaca dari view database:
@@ -106,7 +108,7 @@ class OwnerController extends Controller
         return [$from->startOfDay(), $to->endOfDay()];
     }
 
-    public function sales_report(Request $request): View
+    public function sales_report(Request $request): View|BinaryFileResponse
     {
         [$from, $to] = $this->range($request);
         $between = [$from->toDateString(), $to->toDateString()];
@@ -130,11 +132,16 @@ class OwnerController extends Controller
         $sum = ['total' => (int) $rows->sum('total'), 'count' => (int) $rows->sum('count'), 'discount' => (int) $rows->sum('discount')];
         $sum['avg'] = $sum['count'] ? intdiv($sum['total'], $sum['count']) : 0;
 
+        if ($request->query('export') === 'xlsx') {
+            return $this->exportSales($rows, $sum, $from, $to);
+        }
+
         return view('owner.report-sales', ['rows' => $rows, 'sum' => $sum, 'from' => $from->toDateString(), 'to' => $to->toDateString()]);
     }
 
     /** Laba kotor = penjualan bersih (setelah diskon) - HPP, dari view v_sales_by_menu_daily (HPP asal v_menu_hpp). */
-    public function profit_report(Request $request): View
+    public function profit_report(Request $request): View|BinaryFileResponse
+
     {
         [$from, $to] = $this->range($request);
         $between = [$from->toDateString(), $to->toDateString()];
@@ -145,18 +152,25 @@ class OwnerController extends Controller
             ->orderByDesc(DB::raw('sum(pendapatan)'))
             ->get(['name', DB::raw('sum(qty_terjual)::int as qty'), DB::raw('sum(pendapatan) as revenue'), DB::raw('sum(hpp_total) as cogs')]);
 
+        $pl = [
+        'gross' => (int) $rows->sum('revenue'),
+        'discount' => (int) collect(DB::select('select diskon from fn_sales_report(?::date, ?::date)', $between))->sum('diskon'),
+        'cogs' => (int) $rows->sum('cogs'),
+        ];
+
+
+        if ($request->query('export') === 'xlsx') {
+            return $this->exportProfit($rows, $pl, $from, $to);
+        }
+
         return view('owner.report-profit', [
             'rows' => $rows,
-            'pl' => [
-                'gross' => (int) $rows->sum('revenue'),
-                'discount' => (int) collect(DB::select('select diskon from fn_sales_report(?::date, ?::date)', $between))->sum('diskon'),
-                'cogs' => (int) $rows->sum('cogs'),
-            ],
+            'pl' => $pl,
             'from' => $from->toDateString(), 'to' => $to->toDateString(),
         ]);
     }
 
-    public function stock_report(Request $request): View
+    public function stock_report(Request $request): View|BinaryFileResponse
     {
         [$from, $to] = $this->range($request);
 
@@ -170,6 +184,10 @@ class OwnerController extends Controller
 
             return $i;
         });
+
+        if ($request->query('export') === 'xlsx') {
+            return $this->exportStock($rows, $from, $to);
+        }
 
         return view('owner.report-stock', ['rows' => $rows, 'from' => $from->toDateString(), 'to' => $to->toDateString()]);
     }

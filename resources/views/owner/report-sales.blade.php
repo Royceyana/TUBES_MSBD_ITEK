@@ -3,7 +3,7 @@
 
 @section('content')
 <x-page-head title="Penjualan" script="per hari">
-    <button type="button" onclick="window.print()" class="btn btn-line btn-sm">Cetak</button>
+    <a href="{{ route('owner.sales', ['from' => $from, 'to' => $to, 'export' => 'xlsx']) }}" class="btn btn-line btn-sm">Cetak</a>
 </x-page-head>
 @include('owner._range', ['action' => route('owner.sales')])
 
