@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\XlsxExport;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 /** Laporan pemilik. Hanya transaksi berstatus completed yang dihitung sebagai penjualan. */
 class OwnerController extends Controller
@@ -106,7 +108,7 @@ class OwnerController extends Controller
         return [$from->startOfDay(), $to->endOfDay()];
     }
 
-    public function sales_report(Request $request): View
+    public function sales_report(Request $request): View|BinaryFileResponse
     {
         [$from, $to] = $this->range($request);
 
@@ -131,11 +133,15 @@ class OwnerController extends Controller
         $sum = ['total' => (int) $rows->sum('total'), 'count' => (int) $rows->sum('count'), 'discount' => (int) $rows->sum('discount')];
         $sum['avg'] = $sum['count'] ? intdiv($sum['total'], $sum['count']) : 0;
 
+        if ($request->query('export') === 'xlsx') {
+            return $this->exportSales($rows, $sum, $from, $to);
+        }
+
         return view('owner.report-sales', ['rows' => $rows, 'sum' => $sum, 'from' => $from->toDateString(), 'to' => $to->toDateString()]);
     }
 
     /** Laba kotor = penjualan bersih (setelah diskon) - HPP (qty x biaya bahan per resep, dari view v_menu_hpp). */
-    public function profit_report(Request $request): View
+    public function profit_report(Request $request): View|BinaryFileResponse
     {
         [$from, $to] = $this->range($request);
 
@@ -149,18 +155,24 @@ class OwnerController extends Controller
             ->orderByDesc(DB::raw('sum(d.subtotal)'))
             ->get(['m.name', DB::raw('sum(d.qty)::int as qty'), DB::raw('sum(d.subtotal) as revenue'), DB::raw('sum(d.qty) * coalesce(max(h.hpp),0) as cogs')]);
 
+        $pl = [
+            'gross' => (int) $rows->sum('revenue'),
+            'discount' => (int) $this->sales()->whereBetween('transaction_date', [$from, $to])->sum('discount_amount'),
+            'cogs' => (int) $rows->sum('cogs'),
+        ];
+
+        if ($request->query('export') === 'xlsx') {
+            return $this->exportProfit($rows, $pl, $from, $to);
+        }
+
         return view('owner.report-profit', [
             'rows' => $rows,
-            'pl' => [
-                'gross' => (int) $rows->sum('revenue'),
-                'discount' => (int) $this->sales()->whereBetween('transaction_date', [$from, $to])->sum('discount_amount'),
-                'cogs' => (int) $rows->sum('cogs'),
-            ],
+            'pl' => $pl,
             'from' => $from->toDateString(), 'to' => $to->toDateString(),
         ]);
     }
 
-    public function stock_report(Request $request): View
+    public function stock_report(Request $request): View|BinaryFileResponse
     {
         [$from, $to] = $this->range($request);
 
@@ -175,6 +187,131 @@ class OwnerController extends Controller
             return $i;
         });
 
+        if ($request->query('export') === 'xlsx') {
+            return $this->exportStock($rows, $from, $to);
+        }
+
         return view('owner.report-stock', ['rows' => $rows, 'from' => $from->toDateString(), 'to' => $to->toDateString()]);
+    }
+
+    // ---------- Ekspor spreadsheet (.xlsx) untuk tombol "Cetak" ----------
+
+    /** Tiga baris kepala laporan: judul, periode, waktu cetak. */
+    private function exportHead(XlsxExport $x, string $title, Carbon $from, Carbon $to): void
+    {
+        $x->addRow(['Kafe Kaleng - '.$title], XlsxExport::S_TITLE);
+        $x->addRow(['Periode: '.$from->translatedFormat('d M Y').' s/d '.$to->translatedFormat('d M Y')], XlsxExport::S_NOTE);
+        $x->addRow(['Dicetak: '.now()->translatedFormat('d M Y H:i')], XlsxExport::S_NOTE);
+        $x->skipRow();
+    }
+
+    private function xlsxResponse(XlsxExport $x, string $name, Carbon $from, Carbon $to): BinaryFileResponse
+    {
+        $file = sprintf('%s_%s_%s.xlsx', $name, $from->toDateString(), $to->toDateString());
+
+        return response()->download($x->save(), $file, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ])->deleteFileAfterSend(true);
+    }
+
+    private function exportSales($rows, array $sum, Carbon $from, Carbon $to): BinaryFileResponse
+    {
+        $x = new XlsxExport('Penjualan');
+        $x->setWidths([22, 14, 16, 16, 22]);
+        $this->exportHead($x, 'Laporan Penjualan per Hari', $from, $to);
+
+        $x->addRow(['Tanggal', 'Transaksi', 'Item terjual', 'Diskon (Rp)', 'Penjualan bersih (Rp)'], XlsxExport::S_HEAD);
+        $first = $x->nextRow();
+        foreach ($rows as $r) {
+            $x->addRow([$r->date, (int) $r->count, (int) $r->items, (int) $r->discount, (int) $r->total],
+                [XlsxExport::S_TEXT, XlsxExport::S_INT, XlsxExport::S_INT, XlsxExport::S_INT, XlsxExport::S_INT]);
+        }
+        if ($rows->isEmpty()) {
+            $x->addRow(['Tidak ada penjualan lunas pada rentang ini.', null, null, null, null], XlsxExport::S_TEXT);
+        }
+        $last = $x->nextRow() - 1;
+
+        $t = $x->nextRow();
+        $x->addRow([
+            'Total',
+            ['f' => "SUM(B{$first}:B{$last})", 'v' => $sum['count']],
+            ['f' => "SUM(C{$first}:C{$last})", 'v' => (int) $rows->sum('items')],
+            ['f' => "SUM(D{$first}:D{$last})", 'v' => $sum['discount']],
+            ['f' => "SUM(E{$first}:E{$last})", 'v' => $sum['total']],
+        ], [XlsxExport::S_TOTAL_TEXT, XlsxExport::S_TOTAL_INT, XlsxExport::S_TOTAL_INT, XlsxExport::S_TOTAL_INT, XlsxExport::S_TOTAL_INT]);
+
+        $x->skipRow();
+        $x->addRow(['Rata-rata per transaksi (Rp)', null, null, null, ['f' => "IF(B{$t}=0,0,INT(E{$t}/B{$t}))", 'v' => $sum['avg']]],
+            [XlsxExport::S_LABEL, 0, 0, 0, XlsxExport::S_INT]);
+
+        return $this->xlsxResponse($x, 'laporan-penjualan', $from, $to);
+    }
+
+    private function exportProfit($rows, array $pl, Carbon $from, Carbon $to): BinaryFileResponse
+    {
+        $net = $pl['gross'] - $pl['discount'];
+        $profit = $net - $pl['cogs'];
+        $margin = $net > 0 ? round($profit / $net, 3) : 0;
+
+        $x = new XlsxExport('Laba Kotor');
+        $x->setWidths([36, 12, 22, 20, 22]);
+        $this->exportHead($x, 'Laporan Laba Kotor', $from, $to);
+
+        $x->addRow(['Menu', 'Terjual', 'Penjualan kotor (Rp)', 'HPP (Rp)', 'Laba kotor menu (Rp)'], XlsxExport::S_HEAD);
+        $first = $x->nextRow();
+        foreach ($rows as $r) {
+            $n = $x->nextRow();
+            $x->addRow([$r->name, (int) $r->qty, (int) round($r->revenue), (int) round($r->cogs), ['f' => "C{$n}-D{$n}", 'v' => (int) round($r->revenue) - (int) round($r->cogs)]],
+                [XlsxExport::S_TEXT, XlsxExport::S_INT, XlsxExport::S_INT, XlsxExport::S_INT, XlsxExport::S_INT]);
+        }
+        if ($rows->isEmpty()) {
+            $x->addRow(['Tidak ada penjualan lunas pada rentang ini.', null, null, null, null], XlsxExport::S_TEXT);
+        }
+        $last = $x->nextRow() - 1;
+
+        $t = $x->nextRow();
+        $x->addRow([
+            'Total',
+            ['f' => "SUM(B{$first}:B{$last})", 'v' => (int) $rows->sum('qty')],
+            ['f' => "SUM(C{$first}:C{$last})", 'v' => $pl['gross']],
+            ['f' => "SUM(D{$first}:D{$last})", 'v' => $pl['cogs']],
+            ['f' => "SUM(E{$first}:E{$last})", 'v' => $pl['gross'] - $pl['cogs']],
+        ], [XlsxExport::S_TOTAL_TEXT, XlsxExport::S_TOTAL_INT, XlsxExport::S_TOTAL_INT, XlsxExport::S_TOTAL_INT, XlsxExport::S_TOTAL_INT]);
+
+        // Ringkasan laba kotor: nilai diskon berasal dari tabel transaksi (bukan dari per menu).
+        $x->skipRow();
+        $x->addRow(['Ringkasan Laba Kotor'], XlsxExport::S_LABEL);
+        $g = $x->addRow(['Penjualan kotor', null, ['f' => "C{$t}", 'v' => $pl['gross']]], [XlsxExport::S_TEXT, XlsxExport::S_TEXT, XlsxExport::S_INT]);
+        $d = $x->addRow(['Diskon diberikan', null, $pl['discount']], [XlsxExport::S_TEXT, XlsxExport::S_TEXT, XlsxExport::S_INT]);
+        $n = $x->addRow(['Penjualan bersih (setelah diskon)', null, ['f' => "C{$g}-C{$d}", 'v' => $net]], [XlsxExport::S_TEXT, XlsxExport::S_TEXT, XlsxExport::S_INT]);
+        $h = $x->addRow(['HPP (biaya bahan)', null, ['f' => "D{$t}", 'v' => $pl['cogs']]], [XlsxExport::S_TEXT, XlsxExport::S_TEXT, XlsxExport::S_INT]);
+        $p = $x->addRow(['Laba kotor', null, ['f' => "C{$n}-C{$h}", 'v' => $profit]], [XlsxExport::S_TOTAL_TEXT, XlsxExport::S_TOTAL_TEXT, XlsxExport::S_TOTAL_INT]);
+        $x->addRow(['Margin laba kotor', null, ['f' => "IF(C{$n}>0,C{$p}/C{$n},0)", 'v' => $margin]], [XlsxExport::S_TEXT, XlsxExport::S_TEXT, XlsxExport::S_PCT]);
+
+        $x->skipRow();
+        $x->addRow(['Catatan: angka per menu sebelum diskon. Menu tanpa resep dihitung HPP Rp 0.'], XlsxExport::S_NOTE);
+
+        return $this->xlsxResponse($x, 'laporan-laba-kotor', $from, $to);
+    }
+
+    private function exportStock($rows, Carbon $from, Carbon $to): BinaryFileResponse
+    {
+        $x = new XlsxExport('Stok');
+        $x->setWidths([30, 12, 14, 14, 16, 14, 14]);
+        $this->exportHead($x, 'Laporan Stok', $from, $to);
+
+        $x->addRow(['Bahan', 'Satuan', 'Masuk', 'Keluar', 'Stok akhir', 'Minimum', 'Status'], XlsxExport::S_HEAD);
+        foreach ($rows as $r) {
+            $x->addRow([$r->name, $r->unit, (float) $r->in, (float) $r->out, (float) $r->stock_qty, (float) $r->min_stock, ucfirst($r->stock_status)],
+                [XlsxExport::S_TEXT, XlsxExport::S_CENTER, XlsxExport::S_DEC, XlsxExport::S_DEC, XlsxExport::S_DEC, XlsxExport::S_DEC, XlsxExport::S_CENTER]);
+        }
+        if ($rows->isEmpty()) {
+            $x->addRow(['Belum ada bahan baku.', null, null, null, null, null, null], XlsxExport::S_TEXT);
+        }
+
+        $x->skipRow();
+        $x->addRow(['Catatan: Masuk/Keluar = pergerakan stok pada periode; Stok akhir = stok saat laporan dicetak.'], XlsxExport::S_NOTE);
+
+        return $this->xlsxResponse($x, 'laporan-stok', $from, $to);
     }
 }
