@@ -33,7 +33,17 @@ class UserController extends Controller
     {
         return [
             'name' => ['required', 'string', 'max:100'],
-            'email' => ['required', 'email', 'max:100', Rule::unique('users', 'email')->ignore($user?->id)],
+            // Mengikuti constraint DB: users_email_format_check (domain wajib bertitik) dan
+            // uq_users_email_lower (unik TANPA membedakan huruf besar/kecil).
+            'email' => ['required', 'email', 'max:100', 'regex:/^[^@\s]+@[^@\s]+\.[^@\s]+$/', function (string $attribute, mixed $value, \Closure $fail) use ($user) {
+                $taken = User::whereRaw('lower(email) = ?', [mb_strtolower((string) $value)])
+                    ->when($user, fn ($q) => $q->where('id', '!=', $user->id))
+                    ->exists();
+
+                if ($taken) {
+                    $fail('Email ini sudah dipakai akun lain.');
+                }
+            }],
             'role' => ['required', Rule::in(array_keys(User::ROLE_LABEL))],
             'status' => ['required', 'in:active,inactive'],
             'password' => [$user ? 'nullable' : 'required', 'string', 'min:8', 'max:100'],

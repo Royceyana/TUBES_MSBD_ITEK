@@ -26,7 +26,9 @@ class AuthController extends Controller
             'password' => ['required', 'string'],
         ]);
 
-        $user = User::where('email', $data['email'])->first();
+        // Email di database unik tanpa membedakan huruf besar/kecil (uq_users_email_lower),
+        // jadi pencarian saat login juga tidak membedakannya.
+        $user = User::whereRaw('lower(email) = ?', [mb_strtolower($data['email'])])->first();
 
         // password_verify langsung: hash di SQL berawalan $2b$ yang ditolak BcryptHasher
         // bawaan Laravel saat verifikasi algoritma aktif.

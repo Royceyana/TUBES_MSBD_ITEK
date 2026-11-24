@@ -57,7 +57,7 @@
 
 {{-- ===== Pengantar ===== --}}
 <section class="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-8 px-5 py-14 md:px-10 md:py-20">
-    <p class="max-w-xl text-xl leading-relaxed md:text-2xl">Kafe vintage ramah kantong di Jl. Jamin Ginting, Medan. Menu rumahan yang enak, kopi, dan barang antik yang boleh dibawa pulang.</p>
+    <p class="max-w-xl text-xl leading-relaxed md:text-2xl">Kafe vintage ramah kantong di Jl. Jamin Ginting, Medan. Menu rumahan yang enak, kopi, dan barang antik yang menarik perhatian.</p>
     <div class="flex flex-wrap items-center gap-3">
         <a href="#menu" class="btn btn-primary btn-lg">Lihat menu</a>
         <a href="#lokasi" class="btn btn-line btn-lg">Cari lokasi</a>

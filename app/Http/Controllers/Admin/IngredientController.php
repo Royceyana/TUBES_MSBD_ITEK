@@ -23,8 +23,9 @@ class IngredientController extends Controller
         return [
             'name' => ['required', 'string', 'max:100', Rule::unique('ingredients', 'name')->ignore($ing?->id)],
             'unit' => ['required', 'string', 'max:20'],
-            'min_stock' => ['required', 'numeric', 'min:0'],
-            'cost_per_unit' => ['required', 'numeric', 'min:0'],
+            // Batas atas mengikuti tipe kolom: min_stock numeric(10,2), cost_per_unit numeric(12,4).
+            'min_stock' => ['required', 'numeric', 'min:0', 'max:99999999'],
+            'cost_per_unit' => ['required', 'numeric', 'min:0', 'max:99999999'],
         ];
     }
 
