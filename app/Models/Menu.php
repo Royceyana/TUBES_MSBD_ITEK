@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['category_id', 'name', 'price', 'image', 'status'])]
+#[Fillable(['category_id', 'name', 'price', 'status'])]
 class Menu extends Model
 {
     public function category(): BelongsTo

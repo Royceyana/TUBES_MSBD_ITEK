@@ -8,7 +8,6 @@ use App\Models\Menu;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
@@ -35,16 +34,12 @@ class MenuController extends Controller
             'category_id' => ['nullable', 'integer', 'exists:categories,id'],
             'price' => ['required', 'integer', 'min:1', 'max:99999999'],
             'status' => ['required', 'in:active,inactive'],
-            'image' => ['nullable', 'image', 'max:2048'],
-            'remove_image' => ['nullable', 'boolean'],
         ];
     }
 
     public function store(Request $request): RedirectResponse
     {
         $data = $request->validate($this->rules());
-        unset($data['remove_image']);
-        $data['image'] = $request->file('image')?->store('menus', 'public');
         Menu::create($data);
 
         return back()->with('success', 'Menu ditambahkan. Atur resepnya supaya stok bahan terpotong.');
@@ -53,23 +48,6 @@ class MenuController extends Controller
     public function update(Request $request, Menu $menu): RedirectResponse
     {
         $data = $request->validate($this->rules($menu));
-        $removeImage = (bool) ($data['remove_image'] ?? false);
-        unset($data['remove_image']);
-
-        if ($request->hasFile('image')) {
-            // Foto baru menggantikan yang lama.
-            if ($menu->image) {
-                Storage::disk('public')->delete($menu->image);
-            }
-            $data['image'] = $request->file('image')->store('menus', 'public');
-        } elseif ($removeImage) {
-            if ($menu->image) {
-                Storage::disk('public')->delete($menu->image);
-            }
-            $data['image'] = null;
-        } else {
-            unset($data['image']);   // tidak ada perubahan foto: pertahankan yang lama
-        }
         $menu->update($data);
 
         return back()->with('success', 'Menu "'.$menu->name.'" diperbarui.');
@@ -82,9 +60,6 @@ class MenuController extends Controller
             throw ValidationException::withMessages([
                 'menu' => "Menu \"{$menu->name}\" sudah pernah terjual, jadi tidak bisa dihapus. Ubah statusnya menjadi nonaktif.",
             ]);
-        }
-        if ($menu->image) {
-            Storage::disk('public')->delete($menu->image);
         }
         $menu->delete();
 
